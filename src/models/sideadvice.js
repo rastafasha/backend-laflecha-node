@@ -8,7 +8,7 @@ var SideadvertisingSchema = Schema({
     img: { type: String, required: false },
     url: { type: String, required: false },
     target: { type: String, required: false },
-    status: { type: String, required: false, default: 'Desactivado' },
+    status: { type: String, required: false, default: 'PENDING' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date, default: Date.now, required: true }
 }, { collection: 'Sideadvices' });

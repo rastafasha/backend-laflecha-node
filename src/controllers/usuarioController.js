@@ -162,7 +162,6 @@ const getUsuariosList = async(req, res) => {
 
     const usuarios = await Usuario.find({})
         .populate('pago')
-        .populate('blog')
         .populate('subcription')
         .populate('profile');
 

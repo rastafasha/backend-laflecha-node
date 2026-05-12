@@ -96,6 +96,7 @@ app.use('/api/comentarios', require('./src/routes/comentario'));
 app.use('/api/presupuestos', require('./src/routes/presupuestos'));
 app.use('/api/solicitudes', require('./src/routes/solicitud'));
 app.use('/api/specialities', require('./src/routes/especialidad'));
+app.use('/api/clients', require('./src/routes/cliente'));
 
 
 

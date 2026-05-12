@@ -31,17 +31,11 @@ router.get('/limpiarsubscription', limpiarYActualizarSuscripcion);
 router.get('/:id', 
     // [validarJWT],
      getProfile);
-router.delete('/borrar/:id', [validarJWT, ], borrarProfile);
+
 router.get('/user_profile/:id',validarJWT, listarProfilePorUsuario);
 router.get('/sincronizar-fix/:id', sincronizarSuscripcionExistente);
 
-router.post('/crear', [
-    validarJWT,
-    // check('first_name', 'el first_name es obligatorio').not().isEmpty(),
-    // check('last_name', 'el last_name es obligatorio').not().isEmpty(),
-    // check('usuario', 'El usuario id debe de ser valido').isMongoId(),
-    validarCampos
-], crearProfile);
+
 
 router.post('/plangratuito', [
     validarJWT,
@@ -51,13 +45,19 @@ router.post('/save-subscription', [
     validarJWT,
 ], saveSubscriptionId);
 
+router.post('/store', [
+    validarJWT,
+    // check('first_name', 'el first_name es obligatorio').not().isEmpty(),
+    // check('last_name', 'el last_name es obligatorio').not().isEmpty(),
+    // check('usuario', 'El usuario id debe de ser valido').isMongoId(),
+    validarCampos
+], crearProfile);
 
-
-router.put('/editar/:id', [
+router.put('/update/:id', [
     validarJWT,
     validarCampos
 ], actualizarProfile);
-
+router.delete('/destroy/:id', [validarJWT, ], borrarProfile);
 
 
 

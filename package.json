@@ -10,7 +10,7 @@
         "seed:paises": "node src/seeders/paisSeeder.js",
         "seed:specialities": "node src/seeders/specialitySeeder.js",
         "seed:categorias": "node src/seeders/categoriaSeeder.js",
-        "seed:blog": "node src/seeders/blogSeeder.js"
+        "seed:blogs": "node src/seeders/blogSeeder.js"
     },
     "keywords": [],
     "author": "",

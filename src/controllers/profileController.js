@@ -147,11 +147,9 @@ const listarProfilePorUsuario = async (req, res) => {
             .populate('usuario')
             .populate('subcription') // Trae los documentos del modelo SubcriptionPaypal
             .populate({ 
-                path: 'favoritos', 
-                populate: { path: 'blog', model: 'Blog' } 
+                path: 'favoritos'
             })
-            .populate('pagos')
-            .populate('blog');
+            .populate('pagos');
 
         if (!profile_data) {
             return res.status(404).send({ message: 'No se encontró el perfil' });

@@ -4,7 +4,6 @@ const Speciality = require('../models/speciality');
 const getSpecialities = async(req, res) => {
 
     const specialities = await Speciality.find()
-        .populate('blog')
 
     res.json({
         ok: true,
