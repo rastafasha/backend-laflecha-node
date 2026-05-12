@@ -1,0 +1,199 @@
+const { response } = require('express');
+const Presupuesto = require('../models/presupuesto');
+
+const getPresupuestos = async (req, res) => {
+
+    const presupuestos = await Presupuesto.find({})
+        .populate('usuario')
+
+    res.json({
+        ok: true,
+        presupuestos
+    });
+};
+
+const getPresupuesto = async (req, res) => {
+
+    const id = req.params.id;
+    const uid = req.uid;
+
+    Presupuesto.findById(id, {})
+        .populate('usuario')
+        .exec((err, presupuesto) => {
+            if (err) {
+                return res.status(500).json({
+                    ok: false,
+                    mensaje: 'Error al buscar presupuesto',
+                    errors: err
+                });
+            }
+            if (!presupuesto) {
+                return res.status(400).json({
+                    ok: false,
+                    mensaje: 'El presupuesto con el id ' + id + 'no existe',
+                    errors: { message: 'No existe un presupuesto con ese ID' }
+                });
+
+            }
+            res.status(200).json({
+                ok: true,
+                presupuesto: presupuesto
+            });
+        });
+
+};
+
+const crearPresupuesto = async (req, res) => {
+
+    const uid = req.uid;
+
+
+    const presupuesto = new Presupuesto({
+        usuario: uid,
+        ...req.body,
+    });
+
+    try {
+
+        const presupuestoDB = await presupuesto.save();
+
+        res.json({
+            ok: true,
+            presupuesto: presupuestoDB
+        });
+
+    } catch (error) {
+        // console.log(error);
+        res.status(500).json({
+            ok: false,
+            msg: 'Hable con el admin'
+        });
+    }
+
+
+};
+
+const actualizarPresupuesto = async (req, res) => {
+
+    const id = req.params.id;
+    const uid = req.uid;
+
+    try {
+
+        const presupuesto = await Presupuesto.findById(id);
+        if (!presupuesto) {
+            return res.status(500).json({
+                ok: false,
+                msg: 'presupuesto no encontrado por el id'
+            });
+        }
+
+        const cambiosPresupuesto = {
+            ...req.body,
+            usuario: uid
+        }
+
+
+        const presupuestoActualizado = await Presupuesto.findByIdAndUpdate(id, cambiosPresupuesto, { new: true });
+
+        res.json({
+            ok: true,
+            presupuestoActualizado
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            ok: false,
+            msg: 'Error hable con el admin'
+        });
+    }
+
+
+};
+
+
+const borrarPresupuesto = async (req, res) => {
+
+    const id = req.params.id;
+
+    try {
+
+        const presupuesto = await Presupuesto.findById(id);
+        if (!presupuesto) {
+            return res.status(500).json({
+                ok: false,
+                msg: 'presupuesto no encontrado por el id'
+            });
+        }
+
+        await Presupuesto.findByIdAndDelete(id);
+
+        res.json({
+            ok: true,
+            msg: 'presupuesto eliminado'
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            ok: false,
+            msg: 'Error hable con el admin'
+        });
+    }
+};
+
+const listarPresupuestoPorUsuario = (req, res) => {
+    var id = req.params['id'];
+    Presupuesto.find({ usuario: id }, (err, presupuesto_data) => {
+        if (!err) {
+            if (presupuesto_data) {
+                res.status(200).send({ presupuestos: presupuesto_data });
+            } else {
+                res.status(500).send({ error: err });
+            }
+        } else {
+            res.status(500).send({ error: err });
+        }
+    }).populate('usuario');
+}
+
+function listar_newestPaginados(req, res) {
+    // 1. Obtenemos la página de la URL (ej: /recientes?page=2). 
+    // Si no viene nada, por defecto es la 1.
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
+
+    Presupuesto.find()
+        .populate('usuario', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
+            }
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    presupuestos: data
+                });
+            } else {
+                res.status(404).send({ ok: false, presupuestos: [] });
+            }
+        });
+}
+
+module.exports = {
+    getPresupuestos,
+    getPresupuesto,
+    crearPresupuesto,
+    actualizarPresupuesto,
+    borrarPresupuesto,
+    listarPresupuestoPorUsuario,
+    listar_newestPaginados
+
+
+};

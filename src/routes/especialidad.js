@@ -7,7 +7,6 @@ const router = Router();
 const {
     getSpecialities,
     getSpeciality,
-    find_by_name,
     getSpecialitysList,
     crearSpeciality,
     actualizarSpeciality,
@@ -33,11 +32,6 @@ router.put('/editar/:id', [
 ], actualizarSpeciality);
 
 router.delete('/borrar/:id', validarJWT, borrarSpeciality);
-
-
-
-
-router.get('/category_by_nombre/:nombre', find_by_name);
 
 
 module.exports = router;

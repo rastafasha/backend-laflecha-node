@@ -6,10 +6,11 @@
     "scripts": {
         "start:dev": "nodemon index.js",
         "start": "node index.js",
-        "seed:blog": "node src/seeders/blogSeeder.js",
-        "seed:categoria": "node src/seeders/categoriaSeeder.js",
-        "seed:usuario": "node src/seeders/usuarioSeeder.js",
-        "seed:pais": "node src/seeders/paisSeeder.js"
+        "seed:usuarios": "node src/seeders/usuarioSeeder.js",
+        "seed:paises": "node src/seeders/paisSeeder.js",
+        "seed:specialities": "node src/seeders/specialitySeeder.js",
+        "seed:categorias": "node src/seeders/categoriaSeeder.js",
+        "seed:blog": "node src/seeders/blogSeeder.js"
     },
     "keywords": [],
     "author": "",

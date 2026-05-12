@@ -1,4 +1,4 @@
-# backend-laflecha-node-mongo
+# backend-laflecha-node
 
 # Info para el archivo .env (Uso real)
 PORT=3000

@@ -15,8 +15,6 @@ const usuariosData = [
         role: 'SUPERADMIN',
         terminos: true,
         google: false,
-        blog: null,
-        pago: null,
         createdAt: new Date('2024-01-01T08:00:00Z'),
         updatedAt: new Date('2024-01-01T08:00:00Z')
     },
@@ -27,8 +25,6 @@ const usuariosData = [
         role: 'ADMIN',
         terminos: true,
         google: false,
-        blog: null,
-        pago: null,
         createdAt: new Date('2024-01-02T08:00:00Z'),
         updatedAt: new Date('2024-01-02T08:00:00Z')
     },
@@ -39,8 +35,6 @@ const usuariosData = [
         role: 'MEMBER',
         terminos: true,
         google: false,
-        blog: null,
-        pago: null,
         createdAt: new Date('2024-01-03T08:00:00Z'),
         updatedAt: new Date('2024-01-03T08:00:00Z')
     },
@@ -51,21 +45,17 @@ const usuariosData = [
         role: 'USER',
         terminos: true,
         google: false,
-        blog: null,
-        pago: null,
         createdAt: new Date('2024-01-04T08:00:00Z'),
         updatedAt: new Date('2024-01-04T08:00:00Z')
     },
     {
         _id: EDITOR_ID,
         username: 'Carlos',
-        email: 'carlos@editor.com',
+        email: 'carlos@member.com',
         password: 'password',
-        role: 'EDITOR',
+        role: 'MEMBER',
         terminos: true,
         google: false,
-        blog: null,
-        pago: null,
         createdAt: new Date('2024-01-05T08:00:00Z'),
         updatedAt: new Date('2024-01-05T08:00:00Z')
     }
@@ -95,7 +85,7 @@ const seedUsuarios = async () => {
         console.log('   - admin@admin.com (ADMIN)');
         console.log('   - juan@miembro.com (MEMBER)');
         console.log('   - ana@user.com (USER)');
-        console.log('   - carlos@editor.com (EDITOR)');
+        console.log('   - carlos@member.com (MEMBER)');
 
     } catch (error) {
         console.error('❌ Error al ejecutar el seeder:', error);

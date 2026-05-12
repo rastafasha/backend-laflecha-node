@@ -92,10 +92,10 @@ app.use('/api/webhooks', require('./src/routes/webhook-paypal'));
 app.use('/api/tipospago', require('./src/routes/tipopago'));
 
 app.use('/api/documentos', require('./src/routes/documents'));
-app.use('/api/comments', require('./src/routes/comments'));
+app.use('/api/comentarios', require('./src/routes/comentario'));
 app.use('/api/presupuestos', require('./src/routes/presupuestos'));
 app.use('/api/solicitudes', require('./src/routes/solicitud'));
-app.use('/api/specialities', require('./src/routes/specialities'));
+app.use('/api/specialities', require('./src/routes/especialidad'));
 
 
 
