@@ -10,7 +10,7 @@ var PaymentMethodSchema = Schema({
     username: { type: String, required: false },
     phone: { type: String, required: false },
     email: { type: String, required: false },
-    user: { type: Schema.ObjectId, ref: 'user' },
+    user: { type: Schema.ObjectId, ref: 'Usuario' },
     status: { type: String, required: true, default: 'INACTIVE' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date }

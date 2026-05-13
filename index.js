@@ -91,7 +91,7 @@ app.use('/api/subcriptionpaypal', require('./src/routes/subcripcionpaypaldb'));
 app.use('/api/webhooks', require('./src/routes/webhook-paypal'));
 app.use('/api/tipospago', require('./src/routes/tipopago'));
 
-app.use('/api/documentos', require('./src/routes/documents'));
+app.use('/api/documents', require('./src/routes/documents'));
 app.use('/api/comentarios', require('./src/routes/comentario'));
 app.use('/api/presupuestos', require('./src/routes/presupuestos'));
 app.use('/api/solicitudes', require('./src/routes/solicitud'));

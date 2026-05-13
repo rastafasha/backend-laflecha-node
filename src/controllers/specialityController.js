@@ -30,7 +30,6 @@ const getSpeciality = async(req, res) => {
 
     const id = req.params.id;
     Speciality.findById(id, {})
-        .populate('blog')
         .exec((err, speciality) => {
             if (err) {
                 return res.status(500).json({

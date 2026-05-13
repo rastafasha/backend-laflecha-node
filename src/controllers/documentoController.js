@@ -157,6 +157,35 @@ const listarDocumentoPorUsuario = (req, res) => {
     }).populate('usuario');
 }
 
+const listarDocumentoPorCategoria = (req, res) => {
+    var id = req.params['id'];
+    Documento.find({ usuario: id }, (err, documento_data) => {
+        if (!err) {
+            if (documento_data) {
+                res.status(200).send({ documentos: documento_data });
+            } else {
+                res.status(500).send({ error: err });
+            }
+        } else {
+            res.status(500).send({ error: err });
+        }
+    }).populate('usuario');
+}
+const listarActivos = (req, res) => {
+    var id = req.params['id'];
+    Documento.find({ usuario: id }, (err, documento_data) => {
+        if (!err) {
+            if (documento_data) {
+                res.status(200).send({ documentos: documento_data });
+            } else {
+                res.status(500).send({ error: err });
+            }
+        } else {
+            res.status(500).send({ error: err });
+        }
+    }).populate('usuario');
+}
+
 module.exports = {
     getDocumentos,
     getDocumento,
@@ -164,6 +193,8 @@ module.exports = {
     actualizarDocumento,
     borrarDocumento,
     listarDocumentoPorUsuario,
+    listarDocumentoPorCategoria,
+    listarActivos,
 
 
 };

@@ -231,21 +231,6 @@ const listar_active = async(req, res) => {
 
 };
 
-const tiposbyTienda = async(req, res) => {
-
-    var id = req.params['id'];
-    try {
-        const paymentMethods_data = await PaymentMethod.find({ local: id })
-            // .populate('user', 'first_name last_name email telefono numdoc')
-            .sort({ createdAt: -1 });
-
-        res.status(200).send({ paymentMethods: paymentMethods_data });
-    } catch (err) {
-        res.status(500).send({ error: err });
-    }
-
-};
-
 
 
 
@@ -259,6 +244,5 @@ module.exports = {
     listarPorUsuario,
     updateStatus,
     listar_active,
-    tiposbyTienda
     
 };

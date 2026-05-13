@@ -11,6 +11,8 @@ const {
     actualizarDocumento,
     borrarDocumento,
     listarDocumentoPorUsuario,
+    listarDocumentoPorCategoria,
+    listarActivos,
 
 } = require('../controllers/documentoController');
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -20,6 +22,8 @@ const { validarCampos } = require('../middlewares/validar-campos');
 router.get('/', getDocumentos);
 router.get('/:id', getDocumento);
 router.get('/user/:id', listarDocumentoPorUsuario);
+router.get('/activos', listarActivos);
+router.get('/showByCategory/:id', listarDocumentoPorCategoria);
 
 router.post('/crear', [
     validarJWT,
