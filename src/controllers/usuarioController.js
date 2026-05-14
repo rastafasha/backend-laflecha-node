@@ -163,17 +163,13 @@ const getUsuariosListPaginados = async(req, res) => {
 
 };
 
-// .populate('pago')
-// .populate('subcription')
 const getUsuariosListMember = async (req, res) => {
     try {
         const usuarios = await Usuario.aggregate([
-            // 1. Filtramos en el servidor para traer únicamente los usuarios con rol MEMBER
-            { 
-                $match: { role: 'MEMBER' } 
-            }, 
+            // 1. Filtramos usuarios con rol MEMBER
+            { $match: { role: 'MEMBER' } }, 
             
-            // 2. Buscamos el perfil correspondiente en la colección 'profiles'
+            // 2. Buscamos el perfil correspondiente
             {
                 $lookup: {
                     from: 'profiles',
@@ -183,29 +179,59 @@ const getUsuariosListMember = async (req, res) => {
                 }
             },
             
-            // 3. Convertimos el arreglo de perfil en un objeto plano
+            // 3. Convertimos el arreglo de perfil en objeto plano (Obligatorio antes de buscar la especialidad)
             {
                 $unwind: {
                     path: '$profile',
-                    preserveNullAndEmptyArrays: true // Mantiene al usuario si no tiene perfil asignado
+                    preserveNullAndEmptyArrays: true 
+                }
+            },
+
+            // 4. NUEVO CRUCE: Buscamos la especialidad usando el ID guardado en el perfil
+            {
+                $lookup: {
+                    from: 'specialties', // Asegúrate de que este sea el nombre exacto de la colección en tu BD
+                    let: { especialidadId: '$profile.especialidad' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    // Convierte a ObjectId por si acaso se guardó como String en el perfil
+                                    $eq: [ '$_id', { $toObjectId: '$$especialidadId' } ]
+                                }
+                            }
+                        }
+                    ],
+                    as: 'specialityData'
+                }
+            },
+
+            // 5. Convertimos el arreglo de la especialidad en objeto plano
+            {
+                $unwind: {
+                    path: '$specialityData',
+                    preserveNullAndEmptyArrays: true
                 }
             },
             
-            // 4. Moldeamos la respuesta exacta con los campos solicitados
+            // 6. Moldeamos la respuesta exacta
             {
                 $project: {
-                    _id: 0,                         // Oculta el _id original del usuario
-                    uid: '$_id',                    // Transforma el _id en uid
+                    _id: 0,
+                    uid: '$_id',
                     username: 1,
                     email: 1,
                     role: 1,
-                    // Selecciona solo los campos requeridos dentro del objeto profile
                     profile: {
                         _id: '$profile._id',
                         first_name: '$profile.first_name',
                         last_name: '$profile.last_name',
-                        especialidad: '$profile.especialidad',
-                        img: '$profile.img'
+                        img: '$profile.img',
+                        // Agregamos el nombre directamente dentro del objeto profile para que quede ordenado
+                        especialidad: {
+                            _id: '$specialityData._id',
+                            nombre: '$specialityData.nombre'
+                        }
                     }
                 }
             }
@@ -224,6 +250,7 @@ const getUsuariosListMember = async (req, res) => {
         });
     }
 };
+
 
 
 

@@ -2,7 +2,9 @@ var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
 var SolicitudSchema = Schema({
-    pedido: { type: String, required: true },
+    pedido: { type: Array, required: true },
+    usuario: { type: Schema.Types.ObjectId, ref: 'Usuario' },
+    cliente: { type: Schema.Types.ObjectId, ref: 'Usuario'},
     status: { type: String, required: false, default: 'PENDING' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date, default: Date.now, required: true }

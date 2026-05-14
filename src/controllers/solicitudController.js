@@ -46,8 +46,6 @@ const getSolicitud = async (req, res) => {
 const crearSolicitud = async (req, res) => {
 
     const uid = req.uid;
-
-
     const solicitud = new Solicitud({
         usuario: uid,
         ...req.body,
@@ -142,19 +140,63 @@ const borrarSolicitud = async (req, res) => {
     }
 };
 
-const listarSolicitudPorUsuario = (req, res) => {
-    var id = req.params['id'];
-    Solicitud.find({ usuario: id }, (err, solicitud_data) => {
-        if (!err) {
-            if (solicitud_data) {
-                res.status(200).send({ solicitudes: solicitud_data });
-            } else {
-                res.status(500).send({ error: err });
-            }
-        } else {
-            res.status(500).send({ error: err });
-        }
-    }).populate('usuario');
+const listarSolicitudPorUsuario = async (req, res) => {
+    const id = req.params['id'];
+    // const cliente = req.params['cliente'];
+
+    try {
+        // Ejecutamos la consulta unificando los filtros y aplicando el doble populate
+        const solicitud_data = await Solicitud.find({ 
+            usuario: id, 
+            // cliente: cliente 
+        })
+        .populate('usuario', 'username email role') // Trae campos específicos del usuario profesional
+        .populate('cliente', 'username email')     // Trae campos específicos del cliente que solicita
+        .sort({ createdAt: -1 });                   // Ordena las solicitudes de la más reciente a la más antigua
+
+        return res.status(200).json({ 
+            ok: true,
+            solicitudes: solicitud_data 
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ 
+            ok: false, 
+            message: 'Error en el servidor al obtener las solicitudes',
+            error: err.message 
+        });
+    }
+}
+
+
+const listarSolicitudPorCliente = async (req, res) => {
+   const id = req.params['id'];
+    // const cliente = req.params['cliente'];
+
+    try {
+        // Ejecutamos la consulta unificando los filtros y aplicando el doble populate
+        const solicitud_data = await Solicitud.find({ 
+            // usuario: id, 
+            cliente: id 
+        })
+        .populate('usuario', 'username email role') // Trae campos específicos del usuario profesional
+        .populate('cliente', 'username email')     // Trae campos específicos del cliente que solicita
+        .sort({ createdAt: -1 });                   // Ordena las solicitudes de la más reciente a la más antigua
+
+        return res.status(200).json({ 
+            ok: true,
+            solicitudes: solicitud_data 
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ 
+            ok: false, 
+            message: 'Error en el servidor al obtener las solicitudes',
+            error: err.message 
+        });
+    }
 }
 
 module.exports = {
@@ -163,7 +205,8 @@ module.exports = {
     crearSolicitud,
     actualizarSolicitud,
     borrarSolicitud,
-    listarSolicitudPorUsuario
+    listarSolicitudPorUsuario,
+    listarSolicitudPorCliente
 
 
 };
