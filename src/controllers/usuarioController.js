@@ -139,40 +139,93 @@ function dispatch_emails(req, res) {
 }
 //emvio por correo
 
-const getUsuariosList = async(req, res) => {
+const getUsuariosListPaginados = async(req, res) => {
 
-    // const desde = Number(req.query.desde) || 0;
+    const desde = Number(req.query.desde) || 0;
 
-    // const [usuarios, total] = await Promise.all([
-    //     Usuario
-    //     .find({}, 'username email role google') //esto ultimo filtra el resultado
-    //     .skip(desde)
-    //     .populate('profile')
-    //     .limit(5), //pagina el resultado
+    const [usuarios, total] = await Promise.all([
+        Usuario
+        .find({}, 'username email role google') //esto ultimo filtra el resultado
+        .skip(desde)
+        .populate('profile')
+        .limit(5), //pagina el resultado
 
-    //     Usuario.countDocuments() //cuenta el total
-    // ]);
-
-    // res.json({
-    //     ok: true,
-    //     usuarios,
-    //     total,
-    //     //uid: req.uid
-    // });
-
-    const usuarios = await Usuario.find({})
-        .populate('pago')
-        .populate('subcription')
-        .populate('profile');
+        Usuario.countDocuments() //cuenta el total
+    ]);
 
     res.json({
         ok: true,
-        usuarios
+        usuarios,
+        total,
+        //uid: req.uid
     });
 
 
-
 };
+
+// .populate('pago')
+// .populate('subcription')
+const getUsuariosListMember = async (req, res) => {
+    try {
+        const usuarios = await Usuario.aggregate([
+            // 1. Filtramos en el servidor para traer únicamente los usuarios con rol MEMBER
+            { 
+                $match: { role: 'MEMBER' } 
+            }, 
+            
+            // 2. Buscamos el perfil correspondiente en la colección 'profiles'
+            {
+                $lookup: {
+                    from: 'profiles',
+                    localField: '_id',
+                    foreignField: 'usuario',
+                    as: 'profile'
+                }
+            },
+            
+            // 3. Convertimos el arreglo de perfil en un objeto plano
+            {
+                $unwind: {
+                    path: '$profile',
+                    preserveNullAndEmptyArrays: true // Mantiene al usuario si no tiene perfil asignado
+                }
+            },
+            
+            // 4. Moldeamos la respuesta exacta con los campos solicitados
+            {
+                $project: {
+                    _id: 0,                         // Oculta el _id original del usuario
+                    uid: '$_id',                    // Transforma el _id en uid
+                    username: 1,
+                    email: 1,
+                    role: 1,
+                    // Selecciona solo los campos requeridos dentro del objeto profile
+                    profile: {
+                        _id: '$profile._id',
+                        first_name: '$profile.first_name',
+                        last_name: '$profile.last_name',
+                        especialidad: '$profile.especialidad',
+                        img: '$profile.img'
+                    }
+                }
+            }
+        ]);
+
+        return res.status(200).json({
+            ok: true,
+            usuarios
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            ok: false,
+            msg: 'Error al obtener y filtrar la lista de usuarios'
+        });
+    }
+};
+
+
 
 const getAllUsers = async(req, res) => {
 
@@ -568,7 +621,8 @@ const cambiarAMiembro = async(req, res = response) => {
 
 
 module.exports = {
-    getUsuariosList,
+    getUsuariosListPaginados,
+    getUsuariosListMember,
     crearUsuarios,
     crearEditor,
     actualizarUsuario,

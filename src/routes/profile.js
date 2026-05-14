@@ -25,7 +25,8 @@ const {
 } = require('../middlewares/validar-jwt');
 
 
-router.get('/all/', validarJWT, getProfiles);
+router.get('/all/',
+     getProfiles);
 router.get('/fixsubscription', fixSuscripcionAyer);
 router.get('/limpiarsubscription', limpiarYActualizarSuscripcion);
 router.get('/:id', 

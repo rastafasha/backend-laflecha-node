@@ -6,7 +6,6 @@ const router = Router();
 const { check } = require('express-validator');
 const { validarCampos } = require('../middlewares/validar-campos');
 const {
-    getUsuariosList,
     crearUsuarios,
     crearEditor,
     actualizarUsuario,
@@ -20,7 +19,9 @@ const {
     change_password,
     getAllEditores,
     listarProfileUsuario,
-    cambiarAMiembro
+    cambiarAMiembro,
+    getUsuariosListPaginados,
+    getUsuariosListMember
 } = require('../controllers/usuarioController');
 const {
     validarJWT,
@@ -32,7 +33,10 @@ const {
     validarUserRoleOMismoUsuario
 } = require('../middlewares/validar-jwt');
 
-router.get('/', validarJWT, getUsuariosList);
+router.get('/paginados', 
+     getUsuariosListPaginados);
+router.get('/member', 
+     getUsuariosListMember);
 router.get('/recientes', newest);
 router.get('/all', validarJWT, getAllUsers);
 router.get('/editores', getAllEditores);

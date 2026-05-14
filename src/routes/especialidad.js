@@ -11,6 +11,7 @@ const {
     crearSpeciality,
     actualizarSpeciality,
     borrarSpeciality,
+    listarUsuariosPorEpecialidad
 } = require('../controllers/specialityController');
 
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -20,6 +21,7 @@ const { validarCampos } = require('../middlewares/validar-campos');
 router.get('/', getSpecialities);//para crear perfil
 router.get('/lista', getSpecialitysList); // para obtener perfiles
 router.get('/:id', getSpeciality);
+router.get('/usuarios_especialidad/:slug', listarUsuariosPorEpecialidad);
 
 router.post('/crear', [
     validarJWT,

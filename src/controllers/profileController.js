@@ -74,13 +74,22 @@ const actualizarProfile = async (req, res) => {
 
 const getProfiles = async (req, res) => {
 
-    const profiles = await Profile.find()
-
-    res.json({
-        ok: true,
-        profiles
-    });
+    try {
+        // Buscamos en la colección de perfiles e insertamos los datos del usuario
+        const perfiles = await Profile.find({}).populate('usuario');
+        res.json({ ok: true, perfiles });
+    } catch (error) {
+        res.status(500).json(
+            { 
+                ok: false, 
+                error 
+            }
+        );
+        console.log(error)
+    }
 };
+
+
 
 const getProfile = async (req, res) => {
 

@@ -22,7 +22,6 @@ const {
 
 router.get('/all/', validarJWT, getFavoritos);
 router.get('/:id', [validarJWT], getFavorito);
-router.delete('/borrar/:id', [validarJWT, ], borrarFavorito);
 router.get('/user_favorites/:id', listarFavoritoPorUsuario);
 
 router.post('/crear', [
@@ -36,6 +35,7 @@ router.put('/editar/:id', [
     validarCampos
 ], actualizarFavorito);
 
+router.delete('/borrar/:id', [validarJWT, ], borrarFavorito);
 
 
 module.exports = router;

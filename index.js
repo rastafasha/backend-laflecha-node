@@ -31,6 +31,7 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:4200",
     "http://localhost:4203",
+    "http://localhost:4204",
     "https://articlesapp-jade.vercel.app",
     "https://admin-artilces.vercel.app",
   ];
