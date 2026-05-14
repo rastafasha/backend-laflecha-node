@@ -198,6 +198,51 @@ const listarSolicitudPorCliente = async (req, res) => {
         });
     }
 }
+const updateStatusSolicitud = async (req, res) => {
+    const id = req.params['id'];
+    const { status } = req.body; 
+
+    const estadosValidos = ['PENDING', 'VERIFIED', 'REVIEW', 'FINISHED'];
+    
+    if (!status || !estadosValidos.includes(status.toUpperCase())) {
+        return res.status(400).json({ 
+            ok: false, 
+            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}` 
+        });
+    }
+
+    try {
+        const solicitud_data = await Solicitud.findByIdAndUpdate(
+            id, 
+            { status: status.toUpperCase() }, 
+            { new: true } 
+        )
+        .populate('usuario', 'username email role')
+        .populate('cliente', 'username email')
+        .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+
+        if (!solicitud_data) {
+            return res.status(404).json({ ok: false, message: 'No se encontró la solicitud especificada.' });
+        }
+
+        // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
+        return res.status(200).json({ 
+            ok: true, 
+            solicitud: solicitud_data 
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor' });
+    }
+}
+
+
+
+
+
+
+
 
 module.exports = {
     getSolicitudes,
@@ -206,7 +251,7 @@ module.exports = {
     actualizarSolicitud,
     borrarSolicitud,
     listarSolicitudPorUsuario,
-    listarSolicitudPorCliente
-
+    listarSolicitudPorCliente,
+    updateStatusSolicitud
 
 };

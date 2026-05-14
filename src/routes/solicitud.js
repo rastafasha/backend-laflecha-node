@@ -11,7 +11,8 @@ const {
     actualizarSolicitud,
     borrarSolicitud,
     listarSolicitudPorUsuario,
-    listarSolicitudPorCliente
+    listarSolicitudPorCliente,
+    updateStatusSolicitud
 
 } = require('../controllers/solicitudController');
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -31,6 +32,11 @@ router.put('/editar/:id', [
     validarJWT,
     validarCampos
 ], actualizarSolicitud);
+
+router.put('/update-status/:id', [
+    validarJWT,
+    validarCampos
+], updateStatusSolicitud);
 router.delete('/borrar/:id', validarJWT, borrarSolicitud);
 
 
