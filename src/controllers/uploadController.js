@@ -22,7 +22,8 @@ const fileUpload = async (req, res = response) => {
     const tiposValidos = [
         'profiles', 'blogs', 'pagos', 
         'banners', 
-        'sideadvertisings'
+        'sideadvertisings',
+        'documents'
     ];
     
     if (!tiposValidos.includes(tipo)) {
@@ -50,7 +51,7 @@ const fileUpload = async (req, res = response) => {
     // 4. Validar extensión
     const nombreCortado = file.name.split('.');
     const extensionArchivo = nombreCortado[nombreCortado.length - 1].toLowerCase();
-    const extensionesValidas = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+    const extensionesValidas = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'];
 
     if (!extensionesValidas.includes(extensionArchivo)) {
         return res.status(400).json({ ok: false, msg: 'Formato no permitido (usa jpg, png o webp)' });

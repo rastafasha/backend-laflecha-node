@@ -12,7 +12,8 @@ const {
     listarClientPorUsuario,
     addClient,
     getMyClients,
-    removeClient
+    removeClient,
+    getMyEspecialists
 
 } = require('../controllers/clientController');
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -20,7 +21,8 @@ const { check } = require('express-validator');
 const { validarCampos } = require('../middlewares/validar-campos');
 
 router.get('/:id', getClient);
-router.get('/myclients/:id', getMyClients);
+router.get('/myclients/:usuarioId', getMyClients);
+router.get('/myspecialists/:clienteId', getMyEspecialists);
 router.get('/user/:id', listarClientPorUsuario);
 
 router.post('/crear', [

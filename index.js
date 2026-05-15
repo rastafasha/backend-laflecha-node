@@ -13,7 +13,7 @@ const nodemailer = require("nodemailer");
 const process = require("process");
 const fs = require("fs");
 const os = require("os");
-
+const socketIO = require('socket.io');
 
 //crear server de express
 const app = express();
@@ -99,6 +99,9 @@ app.use('/api/solicitudes', require('./src/routes/solicitud'));
 app.use('/api/specialities', require('./src/routes/especialidad'));
 app.use('/api/clients', require('./src/routes/cliente'));
 
+app.use('/api/transferencias', require('./src/routes/transferencia'));
+app.use('/api/notificaciones', require('./src/routes/notificaciones'));
+app.use('/api/notipush', require('./src/routes/notipush'));
 
 
 //rutas

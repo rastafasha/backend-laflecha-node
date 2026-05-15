@@ -7,10 +7,29 @@ const getMyClients = async (req, res) => {
 
     try {
         const myClients = await Client.find({ usuario: usuarioId })
-            .populate('cliente', 'nombre email telefono') // Solo trae los campos necesarios
+            .populate('cliente', 'username email') // Solo trae los campos necesarios
             .sort({ createdAt: -1 });
 
-        res.json(myClients);
+        res.status(200).json({
+                ok: true,
+                clients: myClients
+            });
+    } catch (error) {
+        res.status(500).json({ error: "Error al obtener la lista" });
+    }
+};
+const getMyEspecialists = async (req, res) => {
+    const { clienteId } = req.params;
+
+    try {
+        const myClients = await Client.find({ cliente: clienteId })
+            .populate('usuario', 'username email') // Solo trae los campos necesarios
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+                ok: true,
+                specialists: myClients
+            });
     } catch (error) {
         res.status(500).json({ error: "Error al obtener la lista" });
     }
@@ -161,40 +180,42 @@ const listarClientPorUsuario = (req, res) => {
 }
 
 const addClient = async (req, res) => {
-    // Extraemos el ID del usuario directamente del token (validarJWT) 
-    // y el ID del cliente del cuerpo de la petición
-    const usuarioId = req.uid; // Asumiendo que tu middleware validarJWT guarda el ID en req.uid
-    const { clienteId } = req.body;
+    // CORRECCIÓN: Extraemos individualmente usuarioId y clienteId desde req.body
+    const { usuarioId, clienteId } = req.body; 
 
     try {
         // 1. Validación básica
-        if (!clienteId) {
-            return res.status(400).json({ ok: false, msg: "El ID del cliente es necesario" });
+        if (!clienteId || !usuarioId) {
+            return res.status(400).json({ 
+                ok: false, 
+                msg: "El ID del cliente y del usuario son necesarios" 
+            });
         }
 
         if (usuarioId === clienteId) {
-            return res.status(400).json({ ok: false, msg: "No puedes agregarte a ti mismo como cliente" });
+            return res.status(400).json({ 
+                ok: false, 
+                msg: "No puedes agregarte a ti mismo como cliente" 
+            });
         }
 
         // 2. Evitar duplicados (Muchos a Muchos)
         const existeRelacion = await Client.findOne({ usuario: usuarioId, cliente: clienteId });
-
         if (existeRelacion) {
-            return res.status(400).json({ ok: false, msg: "Este cliente ya está en tu lista" });
+            return res.status(400).json({ 
+                ok: false, 
+                msg: "Este cliente ya está en tu lista" 
+            });
         }
 
         // 3. Crear la relación
-        const nuevaRelacion = new Client({
-            usuario: usuarioId,
-            cliente: clienteId
-        });
-
+        const nuevaRelacion = new Client({ usuario: usuarioId, cliente: clienteId });
         await nuevaRelacion.save();
 
-        res.status(201).json({
-            ok: true,
-            msg: "Cliente agregado exitosamente",
-            relacion: nuevaRelacion
+        res.status(201).json({ 
+            ok: true, 
+            msg: "Cliente agregado exitosamente", 
+            relacion: nuevaRelacion 
         });
 
     } catch (error) {
@@ -202,6 +223,7 @@ const addClient = async (req, res) => {
         res.status(500).json({ ok: false, msg: "Hable con el administrador" });
     }
 };
+
 
 const removeClient = async (req, res) => {
     const usuarioId = req.uid;          // Viene del token (seguro)
@@ -235,7 +257,8 @@ module.exports = {
     borrarClient,
     listarClientPorUsuario,
     addClient,
-    removeClient 
+    removeClient,
+    getMyEspecialists
 
 
 };

@@ -4,6 +4,7 @@ const Blog = require('../models/blog');
 const Sideadvertising = require('../models/sideadvice');
 const Banner = require('../models/banner');
 const Pago = require('../models/pago');
+const Document = require('../models/document');
 const borrarImagen = (path) => {
 
     if (fs.existsSync(path)) {
@@ -89,6 +90,20 @@ const actualizarImagen = async(tipo, id, nombreArchivo) => {
 
             pago.img = nombreArchivo;
             await pago.save();
+            return true;
+            break;
+        case 'documents':
+            const document = await Document.findById(id);
+            if (!document) {
+                console.log('No es un document por id');
+                return false;
+            }
+            pathViejo = `./uploads/documents/${document.img}` || `./uploads/documents/${document.pdf}`;
+
+            borrarImagen(pathViejo);
+
+            document.img = nombreArchivo;
+            await document.save();
             return true;
             break;
 
