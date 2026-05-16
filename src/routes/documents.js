@@ -6,13 +6,15 @@ const { Router } = require('express');
 const router = Router();
 const {
     getDocumentos,
-    crearDocumento,
+    guardarDocumento,
     getDocumento,
     actualizarDocumento,
     borrarDocumento,
     listarDocumentoPorUsuario,
     listarDocumentoPorCategoria,
     listarActivos,
+    compartirDocumento,
+    listarDocumentosCompartidosConmigo
 
 } = require('../controllers/documentoController');
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -23,12 +25,17 @@ router.get('/', getDocumentos);
 router.get('/:id', getDocumento);
 router.get('/user/:id', listarDocumentoPorUsuario);
 router.get('/activos', listarActivos);
-router.get('/showByCategory/:id', listarDocumentoPorCategoria);
+router.get('/showByCategory/:userId/:name', listarDocumentoPorCategoria);
+router.get('/sharewithme/:miUsuarioId', listarDocumentosCompartidosConmigo);
 
 router.post('/crear', [
     validarJWT,
     validarCampos
-], crearDocumento);
+], guardarDocumento);
+router.post('/share', [
+    validarJWT,
+    validarCampos
+], compartirDocumento);
 
 router.put('/editar/:id', [
     validarJWT,
