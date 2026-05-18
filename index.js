@@ -29,7 +29,6 @@ const server = require('http').Server(app);
 
 app.use((req, res, next) => {
   const allowedOrigins = [
-    "http://localhost:4200",
     "http://localhost:4203",
     "http://localhost:4204",
     "https://articlesapp-jade.vercel.app",
@@ -56,6 +55,17 @@ app.use((req, res, next) => {
   next();
 });
 //cors
+// 2. Aplicar a Socket.io
+const io = socketIO(server, {
+  cors
+});
+app.use((req, res, next) => {
+  req.io = io; // Inyectamos io en la petición
+  next();
+});
+
+// Export io for use in other modules
+module.exports.io = io;
 
 
 
@@ -102,6 +112,7 @@ app.use('/api/clients', require('./src/routes/cliente'));
 app.use('/api/transferencias', require('./src/routes/transferencia'));
 app.use('/api/notificaciones', require('./src/routes/notificaciones'));
 app.use('/api/notipush', require('./src/routes/notipush'));
+app.use('/api/message', require('./src/routes/message'));
 
 
 //rutas
