@@ -33,7 +33,7 @@ app.use((req, res, next) => {
     "http://localhost:4204",//clientes
     "http://localhost:4205",//admin
     "https://lawyer-laflecha.vercel.app",
-    "https://admin-artilces.vercel.app",
+    "https://client-laflecha.vercel.app",
     "https://admin-laflecha.vercel.app",
   ];
   const origin = req.headers.origin;
