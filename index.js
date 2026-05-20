@@ -29,10 +29,12 @@ const server = require('http').Server(app);
 
 app.use((req, res, next) => {
   const allowedOrigins = [
-    "http://localhost:4203",
-    "http://localhost:4204",
-    "https://articlesapp-jade.vercel.app",
+    "http://localhost:4203",//abogados
+    "http://localhost:4204",//clientes
+    "http://localhost:4205",//admin
+    "https://lawyer-laflecha.vercel.app",
     "https://admin-artilces.vercel.app",
+    "https://admin-laflecha.vercel.app",
   ];
   const origin = req.headers.origin;
 
