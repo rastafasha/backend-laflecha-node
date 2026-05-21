@@ -16,6 +16,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@google/genai": "^2.5.0",
         "@vercel/edge-config": "^1.2.1",
         "axios": "^1.7.3",
         "bcryptjs": "^2.4.3",

@@ -169,8 +169,6 @@ const borrarCategoria = async(req, res) => {
     }
 };
 
-
-
 function find_by_name(req, res) {
     var nombre = req.params['nombre'];
 

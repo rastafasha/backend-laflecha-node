@@ -115,6 +115,7 @@ app.use('/api/transferencias', require('./src/routes/transferencia'));
 app.use('/api/notificaciones', require('./src/routes/notificaciones'));
 app.use('/api/notipush', require('./src/routes/notipush'));
 app.use('/api/message', require('./src/routes/message'));
+app.use('/api/iaasistente', require('./src/routes/iaasistente'));
 
 
 //rutas
