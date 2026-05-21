@@ -70,7 +70,8 @@ const fileUpload = async (req, res = response) => {
 
         // 6. Configurar Cloudinary según el tipo de archivo (Evita romper los PDF)
         if (tipo === 'documents' || extensionArchivo === 'pdf') {
-            cloudinaryOptions.resource_type = 'raw'; // Obligatorio para PDFs en Cloudinary
+            cloudinaryOptions.resource_type = 'image'; 
+            cloudinaryOptions.format = 'pdf';
         } else {
             // Transformaciones exclusivas para imágenes
             cloudinaryOptions.transformation = [

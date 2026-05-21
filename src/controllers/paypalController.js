@@ -75,35 +75,52 @@ const createProduct = async (req, res) => {
 
 const createPlan = async (req, res) => {
     try {
-        const {
-            name,
-            product_id,
-            interval_unit,
-            fixed_price,
-            setup_fee,
-            percentage,
-            total_cycles
-        } = req.body;
+        // Capturamos lo que viene del body
+        const body = req.body;
 
-         // 1. Forzamos los valores para que PayPal NO reciba basura ni undefined
-        const valorPrecio = parseFloat(fixed_price || 0).toFixed(2).toString();
+        // EXTRA DE SEGURIDAD: Intentamos sacar los valores si vienen en la raíz, 
+        // o si vienen dentro de objetos (por si Angular mandó la estructura vieja)
+        const name = body.name || "Plan Mensual";
+        const product_id = body.product_id;
+        const total_cycles = Number(body.total_cycles) || 0;
+        
+        // Validar unidad de tiempo (forzar MAYÚSCULAS)
+        const interval_unit = String(body.interval_unit || "MONTH").trim().toUpperCase();
 
+        // Validar fixed_price de forma segura
+        let rawPrice = body.fixed_price;
+        // Si venía anidado en pricing_scheme, lo rescatamos
+        if (body.pricing_scheme?.fixed_price?.value) {
+            rawPrice = body.pricing_scheme.fixed_price.value;
+        }
+        const valorPrecio = parseFloat(rawPrice || 19.90).toFixed(2).toString();
+
+        // Validar setup_fee de forma segura
+        let rawSetupFee = body.setup_fee;
+        if (body.payment_preferences?.setup_fee?.value) {
+            rawSetupFee = body.payment_preferences.setup_fee.value;
+        }
+        const valorSetupFee = parseFloat(rawSetupFee || 0.01).toFixed(2).toString();
+        
+        const percentage = String(body.percentage || "0");
+
+        // Construcción limpia y garantizada del Payload
         const planPayload = {
             product_id: product_id,
             name: name,
-            description: `Plan de suscripción: ${name}`,
-            status: "ACTIVE", // Es mejor crearlos activos directamente
+            description: "Acceso completo a herramientas de la app y beneficios exclusivos",
+            status: "ACTIVE", 
             billing_cycles: [{
                 frequency: {
-                    interval_unit: interval_unit, // MONTH, YEAR, WEEK
+                    interval_unit: interval_unit, // Aquí irá "MONTH" garantizado
                     interval_count: 1
                 },
                 tenure_type: "REGULAR",
                 sequence: 1,
-                total_cycles: total_cycles || 0, // 0 significa infinito (hasta que se cancele)
+                total_cycles: total_cycles, 
                 pricing_scheme: {
                     fixed_price: {
-                        value: String(fixed_price), // "3.00"
+                        value: valorPrecio, // <-- CORREGIDO: Usamos la variable segura formateada
                         currency_code: "USD"
                     }
                 }
@@ -111,41 +128,36 @@ const createPlan = async (req, res) => {
             payment_preferences: {
                 auto_bill_outstanding: true,
                 setup_fee: {
-                    value: String(setup_fee || "0"),
+                    value: valorSetupFee, // <-- CORREGIDO: Usamos la variable segura formateada
                     currency_code: "USD"
                 },
                 setup_fee_failure_action: "CONTINUE",
                 payment_failure_threshold: 3
             },
             taxes: {
-                percentage: String(percentage || "0"),
+                percentage: percentage,
                 inclusive: false
             }
         };
 
-       
-
-       
-        // 2. LOG CRUCIAL: Revisa esto en tu terminal de VS Code/Node
+        // Log crucial para que revises tu consola de Node
         console.log("JSON FINAL ENVIADO A PAYPAL:", JSON.stringify(planPayload, null, 2));
 
-
-        // 2. ENVIAR COMO STRING PARA QUE NADIE LO FORMATEE
         const response = await axios.post(
             `${PAYPAL_API}/v1/billing/plans`,
-            JSON.stringify(planPayload), // <-- Convertimos a texto aquí
+            JSON.stringify(planPayload), 
             {
                 auth,
                 headers: {
                     'PayPal-Request-Id': `plan-${Date.now()}`,
-                    'Content-Type': 'application/json' // Obligatorio al enviar string
+                    'Content-Type': 'application/json' 
                 }
             }
         );
 
         res.status(201).json({
             ok: true,
-            planId: response.data.id, // Este es el P-XXXX que guardarás en tu DB
+            planId: response.data.id, 
             details: response.data
         });
 
@@ -157,6 +169,7 @@ const createPlan = async (req, res) => {
         });
     }
 };
+
 
 // hay que pasar el plan_id P-69F139449T308873YMSOX7LY para generar la subcripcion
 
