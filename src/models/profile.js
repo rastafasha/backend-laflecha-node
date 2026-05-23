@@ -16,6 +16,7 @@ const profileSchema = Schema({
     ciudad: { type: String, require: false },
      tipoDoc: { type: String, required: true },
   num_inpre: { type: String, required: true },
+  status: { type: String, required: false, default: 'PENDING' },
     pais: { type: Schema.Types.ObjectId, require: false, ref: 'Pais' },
     blogs: { type: Schema.Types.ObjectId, require: false, ref: 'Blog' },
     lang: { type: String, required: false },
