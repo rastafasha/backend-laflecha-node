@@ -155,6 +155,8 @@ const listarProfilePorUsuario = async (req, res) => {
         const profile_data = await Profile.findOne({ usuario: req.params.id })
             .populate('usuario')
             .populate('subcription') // Trae los documentos del modelo SubcriptionPaypal
+            .populate('pais') 
+            .populate('especialidad') 
             .populate('documentsR') // Trae los documentos del modelo SubcriptionPaypal
             .populate({ 
                 path: 'favoritos'
@@ -185,6 +187,43 @@ const listarProfilePorUsuario = async (req, res) => {
         res.status(500).send({ message: 'Error en el servidor', error: err.message });
     }
 };
+const updateStatusProfile = async (req, res) => {
+    const id = req.params['id'];
+    const { status } = req.body; 
+
+    const estadosValidos = ['PENDING', 'VERIFIED', 'REVIEW', 'FINISHED'];
+    
+    if (!status || !estadosValidos.includes(status.toUpperCase())) {
+        return res.status(400).json({ 
+            ok: false, 
+            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}` 
+        });
+    }
+
+    try {
+        const profile_data = await Profile.findByIdAndUpdate(
+            id, 
+            { status: status.toUpperCase() }, 
+            { new: true } 
+        )
+        .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+
+        if (!profile_data) {
+            return res.status(404).json({ ok: false, message: 'No se encontró el profile especificado.' });
+        }
+
+        // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
+        return res.status(200).json({ 
+            ok: true, 
+            profile: profile_data 
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor' });
+    }
+}
+
 
 //plan gratuito paypal por defecto
 const activarPlanGratuitoInterno = async (req, res) => {
@@ -357,7 +396,8 @@ module.exports = {
     saveSubscriptionId,
     sincronizarSuscripcionExistente,
     fixSuscripcionAyer,
-    limpiarYActualizarSuscripcion
+    limpiarYActualizarSuscripcion,
+    updateStatusProfile
 
 
 };

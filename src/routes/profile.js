@@ -16,7 +16,8 @@ const {
     saveSubscriptionId,
     sincronizarSuscripcionExistente,
     fixSuscripcionAyer,
-    limpiarYActualizarSuscripcion
+    limpiarYActualizarSuscripcion,
+    updateStatusProfile
 } = require('../controllers/profileController');
 
 const {
@@ -58,6 +59,11 @@ router.put('/update/:id', [
     validarJWT,
     validarCampos
 ], actualizarProfile);
+
+router.put('/update-status/:id', [
+    validarJWT,
+    validarCampos
+], updateStatusProfile);
 router.delete('/destroy/:id', [validarJWT, ], borrarProfile);
 
 
