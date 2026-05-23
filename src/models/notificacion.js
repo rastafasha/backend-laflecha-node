@@ -10,7 +10,16 @@ const notificacionSchema = Schema({
         enum: [
             'PAGO_APROBADO', 
             'PAGO_RECHAZADO', 
-            'NUEVA_FACTURA', 
+            'PRESUPUESTO_APROBADO', 
+            'PRESUPUESTO_RECHAZADO', 
+            'DOCUMENTO_APROBADO', 
+            'DOCUMENTO_RECHAZADO', 
+            'NUEVA_SOLICITUD', 
+            'NUEVO_MENSAJE', 
+            'SOLICITUD_APROBADO', 
+            'SOLICITUD_RECHAZADO', 
+            'PERFIL_APROBADO', 
+            'PERFIL_RECHAZADO', 
             'AVISO_MOROSIDAD',
             'COMUNICADO_ADMIN', // Para avisos por Edificio/Torre/Piso
             'MENSAJE_DIRECTO'   // Para notificaciones individuales

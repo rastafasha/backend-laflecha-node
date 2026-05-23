@@ -1,6 +1,8 @@
 const { response } = require('express');
 const Profile = require('../models/profile');
 const Subcriptionpaypal = require('../models/subcriptionPaypal');
+const Notificacion = require('../models/notificacion');
+const PushSubscription = require('../models/push-subscription');
 
 const crearProfile = async (req, res) => {
     const uid = req.uid;
@@ -13,8 +15,8 @@ const crearProfile = async (req, res) => {
         fechaReinicio: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     };
 
-    const profile = new Profile({ 
-        usuario: uid, 
+    const profile = new Profile({
+        usuario: uid,
         ...req.body,       // Datos que vienen del formulario (nombre, ciudad, etc)
         ...datosPlanGratuito // Forzamos que empiece como Free con sus límites
     });
@@ -80,16 +82,14 @@ const getProfiles = async (req, res) => {
         res.json({ ok: true, perfiles });
     } catch (error) {
         res.status(500).json(
-            { 
-                ok: false, 
-                error 
+            {
+                ok: false,
+                error
             }
         );
         console.log(error)
     }
 };
-
-
 
 const getProfile = async (req, res) => {
 
@@ -155,9 +155,9 @@ const listarProfilePorUsuario = async (req, res) => {
         const profile_data = await Profile.findOne({ usuario: req.params.id })
             .populate('usuario')
             .populate('subcription') // Trae los documentos del modelo SubcriptionPaypal
-            .populate('pais') 
+            .populate('pais')
             .populate('especialidad')
-            .populate({ 
+            .populate({
                 path: 'favoritos'
             })
             .populate('pagos');
@@ -172,13 +172,13 @@ const listarProfilePorUsuario = async (req, res) => {
         }
 
         // 2. Verificar estado Premium (buscamos si alguna en el historial está ACTIVE)
-        const esPremium = (profile_data.plan !== 'free') || 
-                   profile_data.subcription?.some(sub => sub.status === 'ACTIVE');
+        const esPremium = (profile_data.plan !== 'free') ||
+            profile_data.subcription?.some(sub => sub.status === 'ACTIVE');
 
-        res.status(200).send({ 
-            profile: profile_data, 
-            esPremium: esPremium, 
-            quedanGratis: Math.max(0, 3 - (profile_data.articulosVistos || 0)) 
+        res.status(200).send({
+            profile: profile_data,
+            esPremium: esPremium,
+            quedanGratis: Math.max(0, 3 - (profile_data.articulosVistos || 0))
         });
 
     } catch (err) {
@@ -188,33 +188,64 @@ const listarProfilePorUsuario = async (req, res) => {
 };
 const updateStatusProfile = async (req, res) => {
     const id = req.params['id'];
-    const { status } = req.body; 
+    const { status } = req.body;
 
     const estadosValidos = ['PENDING', 'VERIFIED', 'REVIEW', 'FINISHED'];
-    
+
     if (!status || !estadosValidos.includes(status.toUpperCase())) {
-        return res.status(400).json({ 
-            ok: false, 
-            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}` 
+        return res.status(400).json({
+            ok: false,
+            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}`
         });
     }
 
     try {
         const profile_data = await Profile.findByIdAndUpdate(
-            id, 
-            { status: status.toUpperCase() }, 
-            { new: true } 
+            id,
+            { status: status.toUpperCase() },
+            { new: true }
         )
-        .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+            .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
 
         if (!profile_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró el profile especificado.' });
         }
 
         // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
-        return res.status(200).json({ 
-            ok: true, 
-            profile: profile_data 
+        return res.status(200).json({
+            ok: true,
+            profile: profile_data
+        });
+
+        // 3. Configurar Notificación Dinámica
+        const esAprobado = status === 'APROBADO';
+        const tituloNotif = esAprobado ? '✅ Perfil Aprobado' : '❌ Perfil Rechazado';
+
+        // Si es rechazado, usamos las observaciones enviadas
+        const mensajeNotif = esAprobado
+            ? `Tu perfil de ${profile.num_inpre} ha sido verificado.`
+            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
+
+        const notif = new Notificacion({
+            usuario: perfil.usuario,
+            titulo: tituloNotif,
+            mensaje: mensajeNotif,
+            tipo: esAprobado ? 'PERFIL_APROBADO' : 'PERFIL_RECHAZADO',
+            referenciaId: pago._id
+        });
+
+        await notif.save();
+
+        // 4. Emitir por Socket
+        if (req.io) {
+            req.io.to(perfil.usuario.toString()).emit('notificacion-nueva', notif);
+        }
+
+        res.json({
+            ok: true,
+            msg: esAprobado ? 'Perfil aprobado' : 'Perfil rechazado',
+            perfil: perfil,
+            notificacion: notif
         });
 
     } catch (err) {
@@ -231,11 +262,11 @@ const activarPlanGratuitoInterno = async (req, res) => {
 
         const perfil = await Profile.findOneAndUpdate(
             { usuario: uid },
-            { 
-                plan: 'free', 
+            {
+                plan: 'free',
                 articulosVistos: 0,
                 // Reiniciamos la fecha para que tenga 30 días desde hoy
-                fechaReinicio: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) 
+                fechaReinicio: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
             },
             { new: true }
         );
@@ -253,7 +284,7 @@ const activarPlanGratuitoInterno = async (req, res) => {
 const saveSubscriptionId = async (req, res) => {
     try {
         const { uid, subscriptionId } = req.body;
-        
+
         const profile = await Profile.findOneAndUpdate(
             { user: uid }, // O el campo que uses para identificar al dueño del perfil
             { paypalSubscriptionId: subscriptionId },
@@ -328,11 +359,11 @@ const fixSuscripcionAyer = async () => {
 
     // CAMBIO AQUÍ: Usar findOneAndUpdate buscando por el campo 'usuario'
     await Profile.findOneAndUpdate(
-        { usuario: idUsuario }, 
-        { 
+        { usuario: idUsuario },
+        {
             paypalSubscriptionId: subIdPaypal,
             plan: 'Plan Mensual',
-            $push: { subcription: nuevaSub._id } 
+            $push: { subcription: nuevaSub._id }
         }
     );
 
@@ -358,9 +389,9 @@ const limpiarYActualizarSuscripcion = async (req, res) => {
         // 2. Usamos $set para REEMPLAZAR el array anterior por uno nuevo con un solo ID
         const perfilLimpio = await Profile.findOneAndUpdate(
             { usuario: idUsuario },
-            { 
-                $set: { 
-                    plan: 'Plan Mensual', 
+            {
+                $set: {
+                    plan: 'Plan Mensual',
                     subcription: [nuevaSub._id] // Reemplaza todo el array por este único ID
                 },
                 paypalSubscriptionId: "I-ASP5X4YGDWJ1"
@@ -368,10 +399,10 @@ const limpiarYActualizarSuscripcion = async (req, res) => {
             { new: true }
         );
 
-        res.status(200).send({ 
-            message: 'Perfil limpio y actualizado', 
+        res.status(200).send({
+            message: 'Perfil limpio y actualizado',
             planActual: perfilLimpio.plan,
-            subscripciones: perfilLimpio.subcription 
+            subscripciones: perfilLimpio.subcription
         });
 
     } catch (err) {

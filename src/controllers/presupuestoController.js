@@ -1,5 +1,7 @@
 const { response } = require('express');
 const Presupuesto = require('../models/presupuesto');
+const Notificacion = require('../models/notificacion');
+const PushSubscription = require('../models/push-subscription');
 
 const getPresupuestos = async (req, res) => {
 
@@ -228,15 +230,15 @@ function listar_newestPaginados(req, res) {
 
 const updateStatusPresupuesto = async (req, res) => {
     const id = req.params['id'];
-    const { status, observaciones } = req.body; 
+    const { status, observaciones } = req.body;
 
     const estadosValidos = ['APROVED', 'PENDING', 'REFUSED'];
-    
+
     // 1. Validar que venga un estado y que esté dentro de la lista permitida
     if (!status || !estadosValidos.includes(status.toUpperCase())) {
-        return res.status(400).json({ 
-            ok: false, 
-            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}` 
+        return res.status(400).json({
+            ok: false,
+            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}`
         });
     }
 
@@ -252,8 +254,8 @@ const updateStatusPresupuesto = async (req, res) => {
 
     try {
         // 3. Crear el objeto con los datos a actualizar
-        const camposAActualizar = { 
-            status: estadoFormateado 
+        const camposAActualizar = {
+            status: estadoFormateado
         };
 
         // Si viene el estado REFUSED (o simplemente el usuario mandó observaciones), las añadimos al objeto
@@ -266,20 +268,51 @@ const updateStatusPresupuesto = async (req, res) => {
 
         // 4. CORRECCIÓN CRÍTICA: Pasar todos los campos juntos en el segundo parámetro
         const presupuesto_data = await Presupuesto.findByIdAndUpdate(
-            id, 
+            id,
             camposAActualizar,      // 👈 Segundo parámetro: Todo lo que se va a modificar
             { new: true }           // 👈 Tercer parámetro: Opciones de Mongoose
         )
-        .populate('usuario', 'username email role')
-        .lean(); 
+            .populate('usuario', 'username email role')
+            .lean();
 
         if (!presupuesto_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró el presupuesto especificado.' });
         }
 
-        return res.status(200).json({ 
-            ok: true, 
-            presupuesto: presupuesto_data 
+        return res.status(200).json({
+            ok: true,
+            presupuesto: presupuesto_data
+        });
+
+        // Configurar Notificación Dinámica
+        const esAprobado = status === 'APROVED';
+        const tituloNotif = esAprobado ? '✅ Presupuesto Aprobado' : '❌ Presupuesto Rechazado';
+
+        // Si es rechazado, usamos las observaciones enviadas
+        const mensajeNotif = esAprobado
+            ? `Tu Presupuesto ${presupuesto.titulo} ha sido verificado.`
+            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
+
+        const notif = new Notificacion({
+            usuario: presupuesto.usuario,
+            titulo: tituloNotif,
+            mensaje: mensajeNotif,
+            tipo: esAprobado ? 'PRESUPUESTO_APROBADO' : 'PRESUPUESTO_RECHAZADO',
+            referenciaId: presupuesto._id
+        });
+
+        await notif.save();
+
+        // Emitir por Socket
+        if (req.io) {
+            req.io.to(presupuesto.usuario.toString()).emit('notificacion-nueva', notif);
+        }
+
+        res.json({
+            ok: true,
+            msg: esAprobado ? 'Presupuesto aprobado' : 'Presupuesto rechazado',
+            presupuesto: presupuesto,
+            notificacion: notif
         });
 
     } catch (err) {

@@ -3,7 +3,7 @@ const { Schema, model } = require('mongoose');
 
 var PagoSchema = Schema({
     referencia: { type: String, required: true },
-    monto: { type: Number, required: true },
+    amount: { type: Number, required: true },
     img: { type: String, required: false },
     usuario: { type: Schema.Types.ObjectId, ref: 'Usuario' },
     cliente: { type: Schema.Types.ObjectId, ref: 'Usuario' },

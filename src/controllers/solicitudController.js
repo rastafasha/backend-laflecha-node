@@ -1,5 +1,7 @@
 const { response } = require('express');
 const Solicitud = require('../models/solicitud');
+const Notificacion = require('../models/notificacion');
+const PushSubscription = require('../models/push-subscription');
 
 const getSolicitudes = async (req, res) => {
 
@@ -229,6 +231,37 @@ const updateStatusSolicitud = async (req, res) => {
         return res.status(200).json({ 
             ok: true, 
             solicitud: solicitud_data 
+        });
+
+        // Configurar Notificación Dinámica
+        const esAprobado = status === 'APROVED';
+        const tituloNotif = esAprobado ? '✅ Solicitud Aprobado' : '❌ Solicitud Rechazado';
+
+        // Si es rechazado, usamos las observaciones enviadas
+        const mensajeNotif = esAprobado
+            ? `Tu Solicitud ${solicitud.titulo} ha sido verificado.`
+            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
+
+        const notif = new Notificacion({
+            usuario: solicitud.cliente,
+            titulo: tituloNotif,
+            mensaje: mensajeNotif,
+            tipo: esAprobado ? 'SOLICITUD_APROBADO' : 'SOLICITUD_RECHAZADO',
+            referenciaId: solicitud._id
+        });
+
+        await notif.save();
+
+        // Emitir por Socket
+        if (req.io) {
+            req.io.to(solicitud.cliente.toString()).emit('notificacion-nueva', notif);
+        }
+
+        res.json({
+            ok: true,
+            msg: esAprobado ? 'Solicitud aprobado' : 'Solicitud rechazado',
+            solicitud: solicitud,
+            notificacion: notif
         });
 
     } catch (err) {
