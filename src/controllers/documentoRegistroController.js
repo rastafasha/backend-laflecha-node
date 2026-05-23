@@ -166,10 +166,11 @@ const listarDocumentoPorUsuario = (req, res) => {
 
 const updateStatusDocumento = async (req, res) => {
     const id = req.params['id'];
-    const { status } = req.body; 
+    const { status, observaciones } = req.body; 
 
-    const estadosValidos = ['PENDING', 'VERIFIED', 'REVIEW', 'FINISHED'];
+    const estadosValidos = ['APROVED', 'PENDING', 'REFUSED'];
     
+    // 1. Validar que venga un estado y que esté dentro de la lista permitida
     if (!status || !estadosValidos.includes(status.toUpperCase())) {
         return res.status(400).json({ 
             ok: false, 
@@ -177,20 +178,43 @@ const updateStatusDocumento = async (req, res) => {
         });
     }
 
+    const estadoFormateado = status.toUpperCase();
+
+    // 2. NUEVA VALIDACIÓN: Si es REFUSED, exigir las observaciones obligatoriamente
+    if (estadoFormateado === 'REFUSED' && (!observaciones || observaciones.trim() === '')) {
+        return res.status(400).json({
+            ok: false,
+            message: 'Las observaciones son obligatorias cuando el documento es rechazado (REFUSED).'
+        });
+    }
+
     try {
+        // 3. Crear el objeto con los datos a actualizar
+        const camposAActualizar = { 
+            status: estadoFormateado 
+        };
+
+        // Si viene el estado REFUSED (o simplemente el usuario mandó observaciones), las añadimos al objeto
+        if (estadoFormateado === 'REFUSED' || observaciones) {
+            camposAActualizar.observaciones = observaciones;
+        } else {
+            // Opcional: Si pasa a APROVED o PENDING, puedes limpiar las observaciones anteriores poniéndolas en null
+            camposAActualizar.observaciones = null;
+        }
+
+        // 4. CORRECCIÓN CRÍTICA: Pasar todos los campos juntos en el segundo parámetro
         const document_data = await DocumentRegisto.findByIdAndUpdate(
             id, 
-            { status: status.toUpperCase() }, 
-            { new: true } 
+            camposAActualizar,      // 👈 Segundo parámetro: Todo lo que se va a modificar
+            { new: true }           // 👈 Tercer parámetro: Opciones de Mongoose
         )
         .populate('usuario', 'username email role')
-        .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+        .lean(); 
 
         if (!document_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró el documento especificado.' });
         }
 
-        // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
         return res.status(200).json({ 
             ok: true, 
             documento: document_data 
@@ -198,9 +222,10 @@ const updateStatusDocumento = async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ ok: false, message: 'Error en el servidor' });
+        return res.status(500).json({ ok: false, message: 'Error en el servidor al actualizar el estado' });
     }
 }
+
 
 
 

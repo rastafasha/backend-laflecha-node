@@ -156,8 +156,7 @@ const listarProfilePorUsuario = async (req, res) => {
             .populate('usuario')
             .populate('subcription') // Trae los documentos del modelo SubcriptionPaypal
             .populate('pais') 
-            .populate('especialidad') 
-            .populate('documentsR') // Trae los documentos del modelo SubcriptionPaypal
+            .populate('especialidad')
             .populate({ 
                 path: 'favoritos'
             })
