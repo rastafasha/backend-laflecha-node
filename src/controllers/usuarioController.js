@@ -166,10 +166,10 @@ const getUsuariosListPaginados = async(req, res) => {
 const getUsuariosListMember = async (req, res) => {
     try {
         const usuarios = await Usuario.aggregate([
-            // 1. Filtramos usuarios con rol MEMBER
+            // 1. Filtramos INICIALMENTE solo los usuarios con rol MEMBER
             { $match: { role: 'MEMBER' } }, 
             
-            // 2. Buscamos el perfil correspondiente
+            // 2. Buscamos el perfil correspondiente en la colección 'profiles'
             {
                 $lookup: {
                     from: 'profiles',
@@ -179,7 +179,7 @@ const getUsuariosListMember = async (req, res) => {
                 }
             },
             
-            // 3. Convertimos el arreglo de perfil en objeto plano (Obligatorio antes de buscar la especialidad)
+            // 3. Convertimos el arreglo de perfil en un objeto plano
             {
                 $unwind: {
                     path: '$profile',
@@ -187,16 +187,20 @@ const getUsuariosListMember = async (req, res) => {
                 }
             },
 
-            // 4. NUEVO CRUCE: Buscamos la especialidad usando el ID guardado en el perfil
+            // 🔥 CORRECCIÓN CRÍTICA: Filtramos AQUÍ por el status del perfil, ahora que el objeto ya existe
+            { 
+                $match: { 'profile.status': 'VERIFIED' } 
+            },
+
+            // 4. Buscamos la especialidad usando el ID guardado en el perfil
             {
                 $lookup: {
-                    from: 'specialties', // Asegúrate de que este sea el nombre exacto de la colección en tu BD
+                    from: 'specialties', 
                     let: { especialidadId: '$profile.especialidad' },
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
-                                    // Convierte a ObjectId por si acaso se guardó como String en el perfil
                                     $eq: [ '$_id', { $toObjectId: '$$especialidadId' } ]
                                 }
                             }
@@ -214,7 +218,7 @@ const getUsuariosListMember = async (req, res) => {
                 }
             },
             
-            // 6. Moldeamos la respuesta exacta
+            // 6. Moldeamos la respuesta exacta final
             {
                 $project: {
                     _id: 0,
@@ -227,7 +231,7 @@ const getUsuariosListMember = async (req, res) => {
                         first_name: '$profile.first_name',
                         last_name: '$profile.last_name',
                         img: '$profile.img',
-                        // Agregamos el nombre directamente dentro del objeto profile para que quede ordenado
+                        status: '$profile.status',
                         especialidad: {
                             _id: '$specialityData._id',
                             nombre: '$specialityData.nombre'
@@ -250,6 +254,7 @@ const getUsuariosListMember = async (req, res) => {
         });
     }
 };
+
 
 
 
