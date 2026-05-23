@@ -11,6 +11,7 @@ var PagoSchema = Schema({
     subcriptionPaypal: { type: Schema.Types.ObjectId, ref: 'Subcriptionpaypal' },
     status: { type: String, required: false, default: 'PENDING' },
     validacion: { type: String, required: false, default: 'PENDING' },
+    observaciones: { type: String, required: false },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date, default: Date.now, required: true }
 }, { collection: 'pagos' });

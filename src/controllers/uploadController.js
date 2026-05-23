@@ -83,17 +83,7 @@ const fileUpload = async (req, res = response) => {
                 { fetch_format: "auto" }
             ];
         }
-        if (tipo === 'docregistros' || extensionArchivo === 'pdf') {
-            cloudinaryOptions.resource_type = 'image';
-            cloudinaryOptions.format = 'pdf';
-        } else {
-            // Transformaciones exclusivas para imágenes
-            cloudinaryOptions.transformation = [
-                { width: 1000, crop: "limit" },
-                { quality: "auto" },
-                { fetch_format: "auto" }
-            ];
-        }
+       
 
         // Subida a Cloudinary
         const result = await cloudinary.uploader.upload(dataURI, cloudinaryOptions);
@@ -141,69 +131,8 @@ const fileUpload = async (req, res = response) => {
                 nombreArchivo: urlArchivo
             });
         }
-        if (tipo === 'docregistros') {
-            try { // 👈 AGREGADO: Protege tu código de caídas inesperadas
-                // 1. Extraemos las variables del body de forma limpia. 
-                const { tipoDoc: tipoDocumento, num_inpre, especialidad } = req.body;
-
-                // 2. Extracción del archivo físico de express-fileupload
-                const archivoFisico = req.files ? req.files.imagen : null;
-
-                if (!archivoFisico) {
-                    return res.status(400).json({
-                        ok: false,
-                        msg: 'No se recibió ningún archivo físico en el servidor.'
-                    });
-                }
-
-                // 🛠️ SOLUCIÓN AL ERROR: Definir urlArchivo antes de usarla.
-                // Opción A (Local): Si guardas el archivo en una carpeta de tu backend:
-                const urlArchivo = `/uploads/docregistros/${archivoFisico.name}`;
-
-                // NOTA: Recuerda que aquí debes mover físicamente el archivo a tu carpeta:
-                // await archivoFisico.mv(`./src/uploads/docregistros/${archivoFisico.name}`);
-
-                // 3. Instanciar el nuevo documento
-                const nuevoDocumento = new DocumentoRegistro({
-                    name_file: archivoFisico.name,
-                    size: `${(archivoFisico.size / 1024 / 1024).toFixed(2)} MB`,
-                    resolution: 'N/A',
-                    file: urlArchivo, // 👈 Ahora la variable sí existe
-                    type: archivoFisico.mimetype,
-                    tipoDoc: tipoDocumento || 'INPRE',
-                    num_inpre: num_inpre || 'N/A',
-                    especialidad: (especialidad && especialidad !== 'null') ? especialidad : null,
-                    usuario: id
-                });
-
-                // 4. Guardado efectivo en MongoDB
-                await nuevoDocumento.save();
-
-                return res.json({
-                    ok: true,
-                    msg: 'Documento guardado y asignado al usuario con éxito',
-                    documento: nuevoDocumento
-                });
-
-            } catch (error) { // 👈 AGREGADO: Si algo falla, te avisará en la consola
-                console.error("Error al guardar el documento:", error);
-                return res.status(500).json({
-                    ok: false,
-                    msg: 'Error interno en el servidor al intentar guardar en la base de datos',
-                    error: error.message
-                });
-            }
-        }
-        else {
-            // Si es un perfil, pago, blog, etc., ejecuta tu función de actualización habitual
-            await actualizarImagen(tipo, id, urlArchivo);
-
-            return res.json({
-                ok: true,
-                msg: 'Imagen subida y optimizada con éxito',
-                nombreArchivo: urlArchivo
-            });
-        }
+       
+        
 
     } catch (error) {
         console.error('Error Servidor:', error);
@@ -270,7 +199,6 @@ const fileUploadRegistro = async (req, res = response) => {
         };
 
         // 6. Configurar Cloudinary según el tipo de archivo (Evita romper los PDF)
-       
         if (tipo === 'docregistros' || extensionArchivo === 'pdf') {
             cloudinaryOptions.resource_type = 'image';
             cloudinaryOptions.format = 'pdf';
@@ -282,65 +210,46 @@ const fileUploadRegistro = async (req, res = response) => {
                 { fetch_format: "auto" }
             ];
         }
+       
 
         // Subida a Cloudinary
         const result = await cloudinary.uploader.upload(dataURI, cloudinaryOptions);
         const urlArchivo = result.secure_url;
 
         // 7. Lógica de persistencia en la Base de Datos
-       
         if (tipo === 'docregistros') {
-            try { // 👈 AGREGADO: Protege tu código de caídas inesperadas
-                // 1. Extraemos las variables del body de forma limpia. 
-                const { tipoDoc: tipoDocumento, num_inpre, especialidad } = req.body;
+            // Obtenemos la categoría enviada desde el body de la petición
+            const { tipoDoc} = req.body;
 
-                // 2. Extracción del archivo físico de express-fileupload
-                const archivoFisico = req.files ? req.files.imagen : null;
 
-                if (!archivoFisico) {
-                    return res.status(400).json({
-                        ok: false,
-                        msg: 'No se recibió ningún archivo físico en el servidor.'
-                    });
-                }
+            if (!tipoDoc) {
+                return res.status(400).json({
+                    ok: false,
+                    msg: 'El tipo Documento es obligatorio para guardar documentos.'
+                });
+            }
 
-                // 🛠️ SOLUCIÓN AL ERROR: Definir urlArchivo antes de usarla.
-                // Opción A (Local): Si guardas el archivo en una carpeta de tu backend:
-                const urlArchivo = `/uploads/docregistros/${archivoFisico.name}`;
-
-                // NOTA: Recuerda que aquí debes mover físicamente el archivo a tu carpeta:
-                // await archivoFisico.mv(`./src/uploads/docregistros/${archivoFisico.name}`);
-
-                // 3. Instanciar el nuevo documento
-                const nuevoDocumento = new DocumentoRegistro({
-                    name_file: archivoFisico.name,
-                    size: `${(archivoFisico.size / 1024 / 1024).toFixed(2)} MB`,
+            // Instanciar el nuevo documento con tu DocumentSchema
+            const nuevoDocumento = new DocumentoRegistro({
+                    name_file: file.name,
+                    size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
                     resolution: 'N/A',
                     file: urlArchivo, // 👈 Ahora la variable sí existe
-                    type: archivoFisico.mimetype,
-                    tipoDoc: tipoDocumento || 'INPRE',
+                    type: file.mimetype,
+                    tipoDoc: tipoDoc || 'INPRE',
                     usuario: id
                 });
 
-                // 4. Guardado efectivo en MongoDB
-                await nuevoDocumento.save();
+            // Guardado efectivo en MongoDB
+            await nuevoDocumento.save();
 
-                return res.json({
-                    ok: true,
-                    msg: 'Documento guardado y asignado al usuario con éxito',
-                    documento: nuevoDocumento
-                });
+            return res.json({
+                ok: true,
+                msg: 'Documento PDF guardado y asignado al usuario con éxito',
+                documento: nuevoDocumento
+            });
 
-            } catch (error) { // 👈 AGREGADO: Si algo falla, te avisará en la consola
-                console.error("Error al guardar el documento:", error);
-                return res.status(500).json({
-                    ok: false,
-                    msg: 'Error interno en el servidor al intentar guardar en la base de datos',
-                    error: error.message
-                });
-            }
-        }
-        else {
+        } else {
             // Si es un perfil, pago, blog, etc., ejecuta tu función de actualización habitual
             await actualizarImagen(tipo, id, urlArchivo);
 
@@ -350,6 +259,8 @@ const fileUploadRegistro = async (req, res = response) => {
                 nombreArchivo: urlArchivo
             });
         }
+       
+        
 
     } catch (error) {
         console.error('Error Servidor:', error);
