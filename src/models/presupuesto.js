@@ -8,6 +8,7 @@ var PresupuestoSchema = Schema({
     description: { type: String, required: true },
     listItems: { type: Array, required: true },
     amount: { type: Number, required: true },
+     status: { type: String, required: false, default: 'PENDING' },
     createdAt: { type: Date, default: Date.now, required: true },
     updateddAt: { type: Date, default: Date.now, required: true },
 });

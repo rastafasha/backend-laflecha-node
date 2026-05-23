@@ -5,6 +5,7 @@ const Sideadvertising = require('../models/sideadvice');
 const Banner = require('../models/banner');
 const Pago = require('../models/pago');
 const Document = require('../models/document');
+const DocumentRegisto = require('../models/documentoRegistro');
 const borrarImagen = (path) => {
 
     if (fs.existsSync(path)) {
@@ -107,7 +108,20 @@ const actualizarImagen = async(tipo, id, nombreArchivo) => {
             return true;
             break;
 
+        case 'docregistros':
+            const documentRegistro = await DocumentRegisto.findById(id);
+            if (!documentRegistro) {
+                console.log('No es un documentregistro por id');
+                return false;
+            }
+            pathViejo = `./uploads/docregistros/${documentRegistro.img}` || `./uploads/docregistros/${documentRegistro.pdf}`;
 
+            borrarImagen(pathViejo);
+
+            documentRegistro.img = nombreArchivo;
+            await documentRegistro.save();
+            return true;
+            break;
 
     }
 

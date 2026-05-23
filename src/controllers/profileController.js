@@ -155,6 +155,7 @@ const listarProfilePorUsuario = async (req, res) => {
         const profile_data = await Profile.findOne({ usuario: req.params.id })
             .populate('usuario')
             .populate('subcription') // Trae los documentos del modelo SubcriptionPaypal
+            .populate('documentsR') // Trae los documentos del modelo SubcriptionPaypal
             .populate({ 
                 path: 'favoritos'
             })

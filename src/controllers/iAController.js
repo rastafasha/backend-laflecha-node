@@ -151,9 +151,38 @@ const getDocumento = async (req, res) => {
 
 };
 
+const listarPorUsuario = (req, res) => {
+    var id = req.params['id'];
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
+
+    DocumentoLegal.find({ usuario: id })
+        .populate('usuario', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
+            }
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    documentos: data
+                });
+            } else {
+                res.status(404).send({ ok: false, documentos: [] });
+            }
+        });
+}
+
 module.exports = {
     generarDocumentoLegal,
     actualizarDocumentoLegal,
     getDocumento,
-    getDocumentos
+    getDocumentos,
+    listarPorUsuario
 };

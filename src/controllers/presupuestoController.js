@@ -144,17 +144,30 @@ const borrarPresupuesto = async (req, res) => {
 
 const listarPresupuestoPorUsuario = (req, res) => {
     var id = req.params['id'];
-    Presupuesto.find({ usuario: id }, (err, presupuesto_data) => {
-        if (!err) {
-            if (presupuesto_data) {
-                res.status(200).send({ presupuestos: presupuesto_data });
-            } else {
-                res.status(500).send({ error: err });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
+
+    Presupuesto.find({ usuario: id })
+        .populate('cliente', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
             }
-        } else {
-            res.status(500).send({ error: err });
-        }
-    }).populate('usuario');
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    presupuestos: data
+                });
+            } else {
+                res.status(404).send({ ok: false, presupuestos: [] });
+            }
+        });
 }
 
 function listar_newestPaginados(req, res) {

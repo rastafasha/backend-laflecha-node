@@ -10,6 +10,7 @@ const usuarioSchema = Schema({
     terminos: { type: Boolean, require: true },
     google: { type: Boolean, default: false },
     profile: { type: Schema.Types.ObjectId, ref: 'Profile' },
+    documentsrs: { type: Schema.Types.ObjectId, require: false, ref: 'DocumentRegisto' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date, default: Date.now, required: true }
 }, { collection: 'usuarios' });

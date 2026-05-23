@@ -116,6 +116,7 @@ app.use('/api/notificaciones', require('./src/routes/notificaciones'));
 app.use('/api/notipush', require('./src/routes/notipush'));
 app.use('/api/message', require('./src/routes/message'));
 app.use('/api/iaasistente', require('./src/routes/iaasistente'));
+app.use('/api/documentregistro', require('./src/routes/documentoregistro'));
 
 
 //rutas
