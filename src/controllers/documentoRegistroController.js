@@ -226,7 +226,7 @@ const updateStatusDocumento = async (req, res) => {
                 ? `Tu documento ${nombreDoc} ha sido verificado con éxito.`
                 : `Motivo: ${observaciones || 'Datos incorrectos'}`;
 
-            const rutaDestino = `/mis-documentos`;
+            const rutaDestino = `/profile/carga-documentos`;
             
             // ID del dueño del documento (se extrae del documento o del populate)
             const usuarioDestinatarioId = document_data.usuario._id || document_data.usuario;
