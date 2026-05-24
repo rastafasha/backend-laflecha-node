@@ -144,7 +144,7 @@ const actualizarPagoStatus = async (req, res) => {
         await pago.save();
 
         // 2. Configurar los textos dinámicos de la Notificación
-        const esAprobado = nuevoEstado === 'APROVED';
+        const esAprobado = status === 'APROVED';
         const tituloNotif = esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado';
         const tipoNotif = esAprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO';
 

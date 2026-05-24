@@ -144,63 +144,63 @@ const borrarSolicitud = async (req, res) => {
     }
 };
 
-const listarSolicitudPorUsuario = async (req, res) => {
-    const id = req.params['id'];
-    // const cliente = req.params['cliente'];
 
-    try {
-        // Ejecutamos la consulta unificando los filtros y aplicando el doble populate
-        const solicitud_data = await Solicitud.find({ 
-            usuario: id, 
-            // cliente: cliente 
-        })
-        .populate('usuario', 'username email role') // Trae campos específicos del usuario profesional
-        .populate('cliente', 'username email')     // Trae campos específicos del cliente que solicita
-        .sort({ createdAt: -1 });                   // Ordena las solicitudes de la más reciente a la más antigua
+const listarSolicitudPorUsuario = (req, res) => {
+    var id = req.params['id'];
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
 
-        return res.status(200).json({ 
-            ok: true,
-            solicitudes: solicitud_data 
+    Solicitud.find({ usuario: id })
+        .populate('cliente', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
+            }
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    solicitudes: data
+                });
+            } else {
+                res.status(404).send({ ok: false, solicitudes: [] });
+            }
         });
-
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ 
-            ok: false, 
-            message: 'Error en el servidor al obtener las solicitudes',
-            error: err.message 
-        });
-    }
 }
 
-const listarSolicitudPorCliente = async (req, res) => {
-   const id = req.params['id'];
-    // const cliente = req.params['cliente'];
+const listarSolicitudPorCliente = (req, res) => {
+    var id = req.params['id'];
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
 
-    try {
-        // Ejecutamos la consulta unificando los filtros y aplicando el doble populate
-        const solicitud_data = await Solicitud.find({ 
-            // usuario: id, 
-            cliente: id 
-        })
-        .populate('usuario', 'username email role') // Trae campos específicos del usuario profesional
-        .populate('cliente', 'username email')     // Trae campos específicos del cliente que solicita
-        .sort({ createdAt: -1 });                   // Ordena las solicitudes de la más reciente a la más antigua
+    Solicitud.find({ cliente: id })
+        .populate('usuario', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
+            }
 
-        return res.status(200).json({ 
-            ok: true,
-            solicitudes: solicitud_data 
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    solicitudes: data
+                });
+            } else {
+                res.status(404).send({ ok: false, solicitudes: [] });
+            }
         });
-
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ 
-            ok: false, 
-            message: 'Error en el servidor al obtener las solicitudes',
-            error: err.message 
-        });
-    }
 }
+
 
 const updateStatusSolicitud = async (req, res) => {
     const id = req.params['id'];
