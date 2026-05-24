@@ -129,22 +129,22 @@ const actualizarPago = async (req, res) => {
 
 const actualizarPagoStatus = async (req, res) => {
     const { id } = req.params;
-    const { nuevoEstado, observaciones } = req.body;
-    const adminId = req.uid;
+    const { status, observaciones } = req.body;
+    const usuario = req.uid;
 
     try {
         const pago = await Pago.findById(id).populate('solicitud');
         if (!pago) return res.status(404).json({ ok: false, msg: 'Pago no encontrado' });
 
         // 1. Actualizamos los campos en el modelo de pagos
-        pago.status = nuevoEstado;
-        pago.usuario_validador = adminId;
+        pago.status = status;
+        pago.usuario_validador = usuario;
         pago.observaciones = observaciones || '';
         
         await pago.save();
 
         // 2. Configurar los textos dinámicos de la Notificación
-        const esAprobado = nuevoEstado === 'APROBADO';
+        const esAprobado = nuevoEstado === 'APROVED';
         const tituloNotif = esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado';
         const tipoNotif = esAprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO';
 
@@ -259,24 +259,62 @@ function activar(req, res) {
     })
 }
 
-const listarPagoPorUsuario = (req, res) => {
+const listarPagosPorUsuario = (req, res) => {
     var id = req.params['id'];
-    Pago.find({ usuario: id },
-        (err, pago_data) => {
-            if (!err) {
-                if (pago_data) {
-                    res.status(200).send({ pagos: pago_data });
-                } else {
-                    res.status(500).send({ error: err });
-                }
-            } else {
-                res.status(500).send({ error: err });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
+
+    Pago.find({ usuario: id })
+        .populate('cliente', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
             }
-        })
-        .populate('blog')
-        // .populate('Subcriptionpaypal')
-        .populate('usuario');
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    pagos: data
+                });
+            } else {
+                res.status(404).send({ ok: false, pagos: [] });
+            }
+        });
 }
+
+const listarPagosPorCliente = (req, res) => {
+    var id = req.params['id'];
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; // Tu límite actual
+    const skip = (page - 1) * limit; // Cuántos posts saltar
+
+    Pago.find({ cliente: id })
+        .populate('usuario', 'email uid username')
+        .sort({ createdAt: -1 })
+        .skip(skip)   // <-- Nos saltamos los ya cargados
+        .limit(limit) // <-- Traemos los siguientes 4
+        .exec((err, data) => {
+            if (err) {
+                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
+            }
+
+            if (data) {
+                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
+                res.status(200).send({
+                    ok: true,
+                    pagos: data
+                });
+            } else {
+                res.status(404).send({ ok: false, pagos: [] });
+            }
+        });
+}
+
 
 function newest(req, res) {
     Pago.find()
@@ -321,7 +359,8 @@ module.exports = {
     borrarPago,
     desactivar,
     activar,
-    listarPagoPorUsuario,
+    listarPagosPorUsuario,
+listarPagosPorCliente,
     newest,
     actualizarPagoStatus,
     // methodToRun

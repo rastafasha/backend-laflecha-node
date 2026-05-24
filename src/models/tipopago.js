@@ -14,6 +14,6 @@ var PaymentMethodSchema = Schema({
     status: { type: String, required: true, default: 'INACTIVE' },
     createdAt: { type: Date, default: Date.now, required: true },
     updatedAt: { type: Date }
-});
+}, { collection: 'Paymentmethods' });
 
-module.exports = mongoose.model('paymentmethod', PaymentMethodSchema);
+module.exports = mongoose.model('Paymentmethod', PaymentMethodSchema);

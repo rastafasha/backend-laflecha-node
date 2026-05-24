@@ -12,7 +12,8 @@ const {
     borrarPago,
     desactivar,
     activar,
-    listarPagoPorUsuario,
+    listarPagosPorUsuario,
+    listarPagosPorCliente,
     newest,
     actualizarPagoStatus
 
@@ -26,7 +27,8 @@ router.get('/recientes', newest);
 router.get('/desactivar/:id', validarJWT, desactivar);
 router.get('/activar/:id', validarJWT, activar);
 router.get('/:id', getPago);
-router.get('/user_pago/:id', listarPagoPorUsuario);
+router.get('/user/:id', listarPagosPorUsuario);
+router.get('/cliente/:id', listarPagosPorCliente);
 router.delete('/borrar/:id', validarJWT, borrarPago);
 
 router.post('/crear', [
