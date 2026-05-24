@@ -12,17 +12,17 @@ const notificacionSchema = Schema({
             'PAGO_RECHAZADO', 
             'PRESUPUESTO_APROBADO', 
             'PRESUPUESTO_RECHAZADO', 
+            'PRESUPUESTO_ACTUALIZADO', 
             'DOCUMENTO_APROBADO', 
             'DOCUMENTO_RECHAZADO', 
             'NUEVA_SOLICITUD', 
+            'NUEVO_PRESUPUESTO', 
             'NUEVO_MENSAJE', 
+            'NUEVO_PAGO', 
             'SOLICITUD_APROBADO', 
             'SOLICITUD_RECHAZADO', 
             'PERFIL_APROBADO', 
-            'PERFIL_RECHAZADO', 
-            'AVISO_MOROSIDAD',
-            'COMUNICADO_ADMIN', // Para avisos por Edificio/Torre/Piso
-            'MENSAJE_DIRECTO'   // Para notificaciones individuales
+            'PERFIL_RECHAZADO',
         ],
         required: true 
     },

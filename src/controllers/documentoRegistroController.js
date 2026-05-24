@@ -1,8 +1,8 @@
 const { response } = require('express');
 const DocumentRegisto = require('../models/documentoRegistro');
 const Usuario = require('../models/usuario');
-const Notificacion = require('../models/notificacion');
 const PushSubscription = require('../models/push-subscription');
+const { sendNotification } = require('../helpers/notificaciones');
 
 const getDocumentos = async (req, res) => {
 
@@ -172,7 +172,7 @@ const updateStatusDocumento = async (req, res) => {
 
     const estadosValidos = ['APROVED', 'PENDING', 'REFUSED'];
 
-    // 1. Validar que venga un estado y que esté dentro de la lista permitida
+    // 1. Validaciones de entrada
     if (!status || !estadosValidos.includes(status.toUpperCase())) {
         return res.status(400).json({
             ok: false,
@@ -182,7 +182,6 @@ const updateStatusDocumento = async (req, res) => {
 
     const estadoFormateado = status.toUpperCase();
 
-    // 2. NUEVA VALIDACIÓN: Si es REFUSED, exigir las observaciones obligatoriamente
     if (estadoFormateado === 'REFUSED' && (!observaciones || observaciones.trim() === '')) {
         return res.status(400).json({
             ok: false,
@@ -191,66 +190,81 @@ const updateStatusDocumento = async (req, res) => {
     }
 
     try {
-        // 3. Crear el objeto con los datos a actualizar
-        const camposAActualizar = {
-            status: estadoFormateado
-        };
+        // 2. Preparar campos a actualizar
+        const camposAActualizar = { status: estadoFormateado };
 
-        // Si viene el estado REFUSED (o simplemente el usuario mandó observaciones), las añadimos al objeto
         if (estadoFormateado === 'REFUSED' || observaciones) {
             camposAActualizar.observaciones = observaciones;
         } else {
-            // Opcional: Si pasa a APROVED o PENDING, puedes limpiar las observaciones anteriores poniéndolas en null
             camposAActualizar.observaciones = null;
         }
 
-        // 4. CORRECCIÓN CRÍTICA: Pasar todos los campos juntos en el segundo parámetro
+        // 3. Actualizar en la Base de Datos
+        // Eliminamos .lean() temporalmente para poder usar las propiedades cómodamente en la notificación
         const document_data = await DocumentRegisto.findByIdAndUpdate(
             id,
-            camposAActualizar,      // 👈 Segundo parámetro: Todo lo que se va a modificar
-            { new: true }           // 👈 Tercer parámetro: Opciones de Mongoose
-        )
-            .populate('usuario', 'username email role')
-            .lean();
+            camposAActualizar,      
+            { new: true }           
+        ).populate('usuario', 'username email role');
 
         if (!document_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró el documento especificado.' });
         }
 
-        return res.status(200).json({
-            ok: true,
-            documento: document_data
-        });
+        // 💡 OMITIMOS NOTIFICACIÓN SI PASA A "PENDING" (Solo notificamos si es Aprobado o Rechazado)
+        if (estadoFormateado === 'APROVED' || estadoFormateado === 'REFUSED') {
+            
+            // 4. Configurar Notificación Dinámica usando 'document_data'
+            const esAprobado = estadoFormateado === 'APROVED';
+            const tituloNotif = esAprobado ? '✅ Documento Aprobado' : '❌ Documento Rechazado';
+            const tipoNotif = esAprobado ? 'DOCUMENTO_APROBADO' : 'DOCUMENTO_RECHAZADO';
+            
+            // Si tu modelo de documentos tiene un campo como 'nombre' o 'tipoDoc', úsalo aquí
+            const nombreDoc = document_data.tipoDoc || 'de Registro'; 
 
-        // Configurar Notificación Dinámica
-        const esAprobado = status === 'APROVED';
-        const tituloNotif = esAprobado ? '✅ Documento Aprobado' : '❌ Documento Rechazado';
+            const mensajeNotif = esAprobado
+                ? `Tu documento ${nombreDoc} ha sido verificado con éxito.`
+                : `Motivo: ${observaciones || 'Datos incorrectos'}`;
 
-        // Si es rechazado, usamos las observaciones enviadas
-        const mensajeNotif = esAprobado
-            ? `Tu Documento ${documento.tipoDoc} ha sido verificado.`
-            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
+            const rutaDestino = `/mis-documentos`;
+            
+            // ID del dueño del documento (se extrae del documento o del populate)
+            const usuarioDestinatarioId = document_data.usuario._id || document_data.usuario;
 
-        const notif = new Notificacion({
-            usuario: documento.usuario,
-            titulo: tituloNotif,
-            mensaje: mensajeNotif,
-            tipo: esAprobado ? 'DOCUMENTO_APROBADO' : 'DOCUMENTO_RECHAZADO',
-            referenciaId: documento._id
-        });
+            // 5. DISPARO HÍBRIDO CENTRALIZADO (BD + Sockets + Push)
+            const subs = await PushSubscription.find({ usuario: usuarioDestinatarioId });
 
-        await notif.save();
-
-        // Emitir por Socket
-        if (req.io) {
-            req.io.to(documento.usuario.toString()).emit('notificacion-nueva', notif);
+            if (subs.length > 0) {
+                subs.forEach(s => {
+                    sendNotification(
+                        s.subscription, 
+                        tituloNotif, 
+                        mensajeNotif, 
+                        rutaDestino, 
+                        usuarioDestinatarioId, 
+                        tipoNotif, 
+                        document_data._id
+                    ).catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+                });
+            } else {
+                // Caso iPhone 6s: Envía el socket e inserta en el historial de Mongo
+                await sendNotification(
+                    null, 
+                    tituloNotif, 
+                    mensajeNotif, 
+                    rutaDestino, 
+                    usuarioDestinatarioId, 
+                    tipoNotif, 
+                    document_data._id
+                );
+            }
         }
 
-        res.json({
+        // 6. RESPUESTA HTTP (Ahora sí, al final de toda la lógica)
+        return res.status(200).json({
             ok: true,
-            msg: esAprobado ? 'Documento aprobado' : 'Documento rechazado',
-            documento: documento,
-            notificacion: notif
+            msg: estadoFormateado === 'APROVED' ? 'Documento aprobado' : 'Documento rechazado',
+            documento: document_data
         });
 
     } catch (err) {

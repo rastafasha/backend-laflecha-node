@@ -12,7 +12,6 @@ const {
     borrarPresupuesto,
     listarPresupuestoPorUsuario,
     listarPresupuestoPorCliente,
-    listar_newestPaginados,
     updateStatusPresupuesto
 
 } = require('../controllers/presupuestoController');
@@ -25,7 +24,6 @@ router.get('/:id', getPresupuesto);
 router.get('/user/:id', listarPresupuestoPorUsuario);
 router.get('/cliente/:id', listarPresupuestoPorCliente);
 router.get('/', getPresupuestos);
-router.get('/recientes_paginados', listar_newestPaginados);
 
 
 router.post('/crear', [

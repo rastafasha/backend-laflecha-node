@@ -1,7 +1,7 @@
 const { response } = require('express');
 const Solicitud = require('../models/solicitud');
-const Notificacion = require('../models/notificacion');
 const PushSubscription = require('../models/push-subscription');
+const { sendNotification } = require('../helpers/notificaciones');
 
 const getSolicitudes = async (req, res) => {
 
@@ -44,18 +44,62 @@ const getSolicitud = async (req, res) => {
         });
 
 };
-
 const crearSolicitud = async (req, res) => {
 
-    const uid = req.uid;
+    const uid = req.uid; // ID del Cliente logueado que genera la solicitud
+    
     const solicitud = new Solicitud({
-        usuario: uid,
-        ...req.body,
+        cliente: uid, // Mapeamos explícitamente al creador en el campo cliente
+        ...req.body
     });
 
     try {
-
         const solicitudDB = await solicitud.save();
+
+        // --- ENVIAR NOTIFICACIÓN AL ABOGADO / MIEMBRO RECEPTOR ---
+        // Tu esquema guarda al profesional en el campo 'usuario'
+        if (solicitudDB.usuario) {
+            
+            // 1. Buscamos el nombre del cliente para armar la alerta personalizada
+            const clienteInfo = await Usuario.findById(uid).select('nombre');
+            const nombreCliente = clienteInfo ? clienteInfo.nombre : 'Un cliente';
+
+            const titulo = '📄 Nueva Solicitud Recibida';
+            const mensaje = `${nombreCliente} ha creado una nueva solicitud de servicio para ti.`;
+            const rutaDestino = `/solicitudes`; // Ruta en Angular para el abogado
+
+            // 2. Buscamos canales de Web Push tradicionales en segundo plano
+            const subs = await PushSubscription.find({ usuario: solicitudDB.usuario });
+
+            if (subs.length > 0) {
+                // Si tiene dispositivos push registrados, el helper envía push, socket e historial
+                subs.forEach(s => {
+                    sendNotification(
+                        s.subscription, 
+                        titulo, 
+                        mensaje, 
+                        rutaDestino, 
+                        solicitudDB.usuario, 
+                        'NUEVA_SOLICITUD', // ENUM de tu esquema de notificaciones
+                        solicitudDB._id
+                    ).catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+                });
+            } else {
+                // 💡 CASO IPHONE 6S (SOCKET + HISTORIAL BD DIRECTO AL ABOGADO)
+                // Si el abogado eres tú probando desde el teléfono sin push activos,
+                // enviamos null y el helper se encarga del túnel WebSocket en tiempo real.
+                await sendNotification(
+                    null, 
+                    titulo, 
+                    mensaje, 
+                    rutaDestino, 
+                    solicitudDB.usuario, 
+                    'NUEVA_SOLICITUD', 
+                    solicitudDB._id
+                );
+            }
+        }
+        // ----------------------------------------------------
 
         res.json({
             ok: true,
@@ -63,55 +107,13 @@ const crearSolicitud = async (req, res) => {
         });
 
     } catch (error) {
-        // console.log(error);
+        console.log(error);
         res.status(500).json({
             ok: false,
             msg: 'Hable con el admin'
         });
     }
-
-
 };
-
-const actualizarSolicitud = async (req, res) => {
-
-    const id = req.params.id;
-    const uid = req.uid;
-
-    try {
-
-        const solicitud = await Solicitud.findById(id);
-        if (!solicitud) {
-            return res.status(500).json({
-                ok: false,
-                msg: 'solicitud no encontrado por el id'
-            });
-        }
-
-        const cambiosSolicitud = {
-            ...req.body,
-            usuario: uid
-        }
-
-
-        const solicitudActualizado = await Solicitud.findByIdAndUpdate(id, cambiosSolicitud, { new: true });
-
-        res.json({
-            ok: true,
-            solicitudActualizado
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            ok: false,
-            msg: 'Error hable con el admin'
-        });
-    }
-
-
-};
-
 
 const borrarSolicitud = async (req, res) => {
 
@@ -171,7 +173,6 @@ const listarSolicitudPorUsuario = async (req, res) => {
     }
 }
 
-
 const listarSolicitudPorCliente = async (req, res) => {
    const id = req.params['id'];
     // const cliente = req.params['cliente'];
@@ -200,6 +201,7 @@ const listarSolicitudPorCliente = async (req, res) => {
         });
     }
 }
+
 const updateStatusSolicitud = async (req, res) => {
     const id = req.params['id'];
     const { status } = req.body; 
@@ -213,55 +215,80 @@ const updateStatusSolicitud = async (req, res) => {
         });
     }
 
+    const estadoFormateado = status.toUpperCase();
+
     try {
+        // Quitamos .lean() momentáneamente para extraer de forma segura los campos poblados en el helper
         const solicitud_data = await Solicitud.findByIdAndUpdate(
             id, 
-            { status: status.toUpperCase() }, 
+            { status: estadoFormateado }, 
             { new: true } 
         )
-        .populate('usuario', 'username email role')
-        .populate('cliente', 'username email')
-        .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+        .populate('usuario', 'username email role nombre')
+        .populate('cliente', 'username email');
 
         if (!solicitud_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró la solicitud especificada.' });
         }
 
-        // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
+        // ========================================================
+        // 🔔 NOTIFICAR AL CLIENTE EN BASE A TUS ESTADOS REALES
+        // ========================================================
+        // Solo enviamos alertas si pasa a estados definitivos como VERIFIED o FINISHED
+        if (estadoFormateado === 'VERIFIED' || estadoFormateado === 'FINISHED') {
+            
+            const esVerificado = estadoFormateado === 'VERIFIED';
+            
+            // 1. Configuramos textos dinámicos según tus ENUMs reales de Notificación
+            const tituloNotif = esVerificado ? '✅ Solicitud Verificada' : '🏁 Solicitud Finalizada';
+            const tipoNotif = esVerificado ? 'SOLICITUD_APROBADO' : 'SOLICITUD_RECHAZADO'; // Mapeas a tus enums existentes
+            
+            const nombreAbogado = solicitud_data.usuario?.nombre || 'El profesional';
+            const mensajeNotif = esVerificado
+                ? `${nombreAbogado} ha verificado y aceptado tu solicitud de servicio.`
+                : `Tu solicitud de servicio ha sido marcada como completada/finalizada.`;
+
+            const rutaDestino = `/mis-solicitudes`;
+            
+            // Extraemos el ID del cliente destinatario desde el objeto poblado o directo
+            const clienteId = solicitud_data.cliente._id || solicitud_data.cliente;
+
+            if (clienteId) {
+                // 2. Buscamos canales de Web Push tradicionales en segundo plano
+                const subs = await PushSubscription.find({ usuario: clienteId });
+
+                if (subs.length > 0) {
+                    subs.forEach(s => {
+                        sendNotification(
+                            s.subscription, 
+                            tituloNotif, 
+                            mensajeNotif, 
+                            rutaDestino, 
+                            clienteId, 
+                            tipoNotif, 
+                            solicitud_data._id
+                        ).catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+                    });
+                } else {
+                    // 💡 CASO IPHONE 6S (SOCKET + HISTORIAL BD DIRECTO AL CLIENTE)
+                    await sendNotification(
+                        null, 
+                        tituloNotif, 
+                        mensajeNotif, 
+                        rutaDestino, 
+                        clienteId, 
+                        tipoNotif, 
+                        solicitud_data._id
+                    );
+                }
+            }
+        }
+        // ========================================================
+
+        // 3. RESPUESTA HTTP: Única y al final de toda la lógica del flujo
         return res.status(200).json({ 
             ok: true, 
             solicitud: solicitud_data 
-        });
-
-        // Configurar Notificación Dinámica
-        const esAprobado = status === 'APROVED';
-        const tituloNotif = esAprobado ? '✅ Solicitud Aprobado' : '❌ Solicitud Rechazado';
-
-        // Si es rechazado, usamos las observaciones enviadas
-        const mensajeNotif = esAprobado
-            ? `Tu Solicitud ${solicitud.titulo} ha sido verificado.`
-            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
-
-        const notif = new Notificacion({
-            usuario: solicitud.cliente,
-            titulo: tituloNotif,
-            mensaje: mensajeNotif,
-            tipo: esAprobado ? 'SOLICITUD_APROBADO' : 'SOLICITUD_RECHAZADO',
-            referenciaId: solicitud._id
-        });
-
-        await notif.save();
-
-        // Emitir por Socket
-        if (req.io) {
-            req.io.to(solicitud.cliente.toString()).emit('notificacion-nueva', notif);
-        }
-
-        res.json({
-            ok: true,
-            msg: esAprobado ? 'Solicitud aprobado' : 'Solicitud rechazado',
-            solicitud: solicitud,
-            notificacion: notif
         });
 
     } catch (err) {
@@ -271,17 +298,10 @@ const updateStatusSolicitud = async (req, res) => {
 }
 
 
-
-
-
-
-
-
 module.exports = {
     getSolicitudes,
     getSolicitud,
     crearSolicitud,
-    actualizarSolicitud,
     borrarSolicitud,
     listarSolicitudPorUsuario,
     listarSolicitudPorCliente,

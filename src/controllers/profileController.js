@@ -1,8 +1,8 @@
 const { response } = require('express');
 const Profile = require('../models/profile');
 const Subcriptionpaypal = require('../models/subcriptionPaypal');
-const Notificacion = require('../models/notificacion');
 const PushSubscription = require('../models/push-subscription');
+const { sendNotification } = require('../helpers/notificaciones');
 
 const crearProfile = async (req, res) => {
     const uid = req.uid;
@@ -186,9 +186,12 @@ const listarProfilePorUsuario = async (req, res) => {
         res.status(500).send({ message: 'Error en el servidor', error: err.message });
     }
 };
+
+
 const updateStatusProfile = async (req, res) => {
     const id = req.params['id'];
-    const { status } = req.body;
+    // Extraemos 'observaciones' del body para poder usarlas en el mensaje de rechazo o guardarlas si tu modelo lo admite
+    const { status, observaciones } = req.body;
 
     const estadosValidos = ['PENDING', 'VERIFIED', 'REVIEW', 'FINISHED'];
 
@@ -199,53 +202,85 @@ const updateStatusProfile = async (req, res) => {
         });
     }
 
+    const estadoFormateado = status.toUpperCase();
+
     try {
+        // Preparamos los campos a actualizar en el perfil
+        const camposAActualizar = { status: estadoFormateado };
+        if (observaciones !== undefined) {
+            camposAActualizar.observaciones = observaciones;
+        }
+
+        // Quitamos .lean() para poder manipular el documento Mongoose de forma segura en las validaciones
         const profile_data = await Profile.findByIdAndUpdate(
             id,
-            { status: status.toUpperCase() },
+            camposAActualizar,
             { new: true }
-        )
-            .lean(); // <- CORRECCIÓN 1: Convierte a JSON puro para evitar duplicaciones del campo pedido
+        ).populate('usuario', 'username email role nombre'); // Suponiendo que vincula al usuario dueño
 
         if (!profile_data) {
             return res.status(404).json({ ok: false, message: 'No se encontró el profile especificado.' });
         }
 
-        // CORRECCIÓN 2: Cambiado "solicitudes:" por "solicitud:" en singular
+        // ========================================================
+        // 🔔 NOTIFICAR AL USUARIO DUEÑO DEL PERFIL
+        // ========================================================
+        // Solo notificamos cuando pasa a estados definitivos (VERIFIED o FINISHED / REVIEW si es rechazo)
+        if (estadoFormateado === 'VERIFIED' || estadoFormateado === 'REVIEW' || estadoFormateado === 'FINISHED') {
+            
+            const esAprobado = estadoFormateado === 'VERIFIED' || estadoFormateado === 'FINISHED';
+            
+            // 1. Configuramos textos dinámicos mapeando tus ENUMs reales de Notificación
+            const tituloNotif = esAprobado ? '✅ Perfil Aprobado' : '❌ Perfil Rechazado';
+            const tipoNotif = esAprobado ? 'PERFIL_APROBADO' : 'PERFIL_RECHAZADO';
+            
+            const identificadorPerfil = profile_data.num_inpre || 'Profesional';
+            const mensajeNotif = esAprobado
+                ? `Tu perfil de ${identificadorPerfil} ha sido verificado con éxito.`
+                : `Tu perfil requiere revisión. Motivo: ${observaciones || 'Datos incorrectos o ilegibles.'}`;
+
+            const rutaDestino = `/profile`; // Ruta en Angular para que revise su perfil
+            
+            // Extraemos el ID del usuario dueño del perfil
+            const usuarioDestinatarioId = profile_data.usuario?._id || profile_data.usuario;
+
+            if (usuarioDestinatarioId) {
+                // 2. Buscamos canales de Web Push tradicionales en segundo plano
+                const subs = await PushSubscription.find({ usuario: usuarioDestinatarioId });
+
+                if (subs.length > 0) {
+                    subs.forEach(s => {
+                        sendNotification(
+                            s.subscription, 
+                            tituloNotif, 
+                            mensajeNotif, 
+                            rutaDestino, 
+                            usuarioDestinatarioId, 
+                            tipoNotif, 
+                            profile_data._id
+                        ).catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+                    });
+                } else {
+                    // 💡 CASO IPHONE 6S (SOCKET + HISTORIAL BD EN TIEMPO REAL)
+                    await sendNotification(
+                        null, 
+                        tituloNotif, 
+                        mensajeNotif, 
+                        rutaDestino, 
+                        usuarioDestinatarioId, 
+                        tipoNotif, 
+                        profile_data._id
+                    );
+                }
+            }
+        }
+        // ========================================================
+
+        // 3. RESPUESTA HTTP: Única y al final de toda la lógica del flujo
         return res.status(200).json({
             ok: true,
+            msg: estadoFormateado === 'VERIFIED' || estadoFormateado === 'FINISHED' ? 'Perfil aprobado' : 'Perfil enviado a revisión',
             profile: profile_data
-        });
-
-        // 3. Configurar Notificación Dinámica
-        const esAprobado = status === 'APROBADO';
-        const tituloNotif = esAprobado ? '✅ Perfil Aprobado' : '❌ Perfil Rechazado';
-
-        // Si es rechazado, usamos las observaciones enviadas
-        const mensajeNotif = esAprobado
-            ? `Tu perfil de ${profile.num_inpre} ha sido verificado.`
-            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
-
-        const notif = new Notificacion({
-            usuario: perfil.usuario,
-            titulo: tituloNotif,
-            mensaje: mensajeNotif,
-            tipo: esAprobado ? 'PERFIL_APROBADO' : 'PERFIL_RECHAZADO',
-            referenciaId: pago._id
-        });
-
-        await notif.save();
-
-        // 4. Emitir por Socket
-        if (req.io) {
-            req.io.to(perfil.usuario.toString()).emit('notificacion-nueva', notif);
-        }
-
-        res.json({
-            ok: true,
-            msg: esAprobado ? 'Perfil aprobado' : 'Perfil rechazado',
-            perfil: perfil,
-            notificacion: notif
         });
 
     } catch (err) {

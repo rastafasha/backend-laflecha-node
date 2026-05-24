@@ -8,7 +8,6 @@ const {
     getSolicitudes,
     crearSolicitud,
     getSolicitud,
-    actualizarSolicitud,
     borrarSolicitud,
     listarSolicitudPorUsuario,
     listarSolicitudPorCliente,
@@ -23,20 +22,17 @@ router.get('/', getSolicitudes);
 router.get('/:id', getSolicitud);
 router.get('/user/:id', listarSolicitudPorUsuario);
 router.get('/cliente/:id', listarSolicitudPorCliente);
+
 router.post('/crear', [
     validarJWT,
     validarCampos
 ], crearSolicitud);
 
-router.put('/editar/:id', [
-    validarJWT,
-    validarCampos
-], actualizarSolicitud);
-
 router.put('/update-status/:id', [
     validarJWT,
     validarCampos
 ], updateStatusSolicitud);
+
 router.delete('/borrar/:id', validarJWT, borrarSolicitud);
 
 

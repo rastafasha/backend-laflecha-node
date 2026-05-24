@@ -8,6 +8,7 @@ var PagoSchema = Schema({
     usuario: { type: Schema.Types.ObjectId, ref: 'Usuario' },
     cliente: { type: Schema.Types.ObjectId, ref: 'Usuario' },
     blog: { type: Schema.Types.ObjectId, ref: 'Blog' },
+    solicitud: { type: Schema.Types.ObjectId, ref: 'Solicitud' },
     subcriptionPaypal: { type: Schema.Types.ObjectId, ref: 'Subcriptionpaypal' },
     status: { type: String, required: false, default: 'PENDING' },
     validacion: { type: String, required: false, default: 'PENDING' },

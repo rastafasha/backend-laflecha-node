@@ -1,6 +1,7 @@
 const { response } = require('express');
 const Pago = require('../models/pago');
-
+const PushSubscription = require('../models/push-subscription');
+const { sendNotification } = require('../helpers/notificaciones');
 
 const getPagos = async (req, res) => {
 
@@ -48,31 +49,44 @@ const getPago = async (req, res) => {
 };
 
 const crearPago = async (req, res) => {
-
-    const uid = req.uid;
+    const uid = req.uid; // El cliente logueado
     const pago = new Pago({
-        usuario: uid,
+        cliente: uid,
         ...req.body
     });
 
     try {
-
         const pagoDB = await pago.save();
 
-        res.json({
-            ok: true,
-            pago: pagoDB
-        });
+        // Si el pago incluye al abogado/miembro receptor, le notificamos de inmediato
+        if (pagoDB.usuario) {
+            
+            // 1. Buscamos las suscripciones push que tenga activas ese abogado
+            const subs = await PushSubscription.find({ usuario: pagoDB.usuario });
+
+            const titulo = '💰 Nuevo Pago Recibido';
+            const mensaje = `Se ha registrado un nuevo pago de $${pagoDB.amount}.`;
+            const rutaDestino = `/mis-pagos`;
+
+            if (subs.length > 0) {
+                // Si tiene dispositivos push, iteramos y enviamos (el helper se encarga del socket e historial también)
+                subs.forEach(s => {
+                    sendNotification(s.subscription, titulo, mensaje, rutaDestino, pagoDB.usuario, 'NUEVO_PAGO', pagoDB._id)
+                        .catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+                });
+            } else {
+                // 💡 CASO CLAVE PARA TU IPHONE 6S: Si no tiene Push activos, igual llamamos al helper
+                // pasándole "null" en la suscripción. Así el SÓLO ejecutará el Socket + Historial en BD.
+                sendNotification(null, titulo, mensaje, rutaDestino, pagoDB.usuario, 'NUEVO_PAGO', pagoDB._id);
+            }
+        }
+
+        res.json({ ok: true, pago: pagoDB });
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({
-            ok: false,
-            msg: 'Hable con el admin'
-        });
+        res.status(500).json({ ok: false, msg: 'Hable con el admin' });
     }
-
-
 };
 
 const actualizarPago = async (req, res) => {
@@ -113,63 +127,74 @@ const actualizarPago = async (req, res) => {
 
 };
 
-
 const actualizarPagoStatus = async (req, res) => {
+    const { id } = req.params;
+    const { nuevoEstado, observaciones } = req.body;
+    const adminId = req.uid;
 
-   const { id } = req.params;
-       // 1. IMPORTANTE: Extraemos 'observaciones' que es lo que envías desde el front
-       const { nuevoEstado, observaciones } = req.body;
-       const adminId = req.uid;
-   
-       try {
-           const pago = await Pago.findById(id).populate('factura');
-           if (!pago) return res.status(404).json({ ok: false, msg: 'Pago no encontrado' });
-   
-           // 2. Actualizamos campos comunes
-           pago.status = nuevoEstado;
-           pago.usuario_validador = adminId;
-           // Guardamos el texto que viene del front en el campo del modelo
-           pago.observaciones = observaciones || '';
-           
-           await pago.save();
-   
-           // 3. Configurar Notificación Dinámica
-           const esAprobado = nuevoEstado === 'APROBADO';
-           const tituloNotif = esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado';
-   
-           // Si es rechazado, usamos las observaciones enviadas
-           const mensajeNotif = esAprobado
-               ? `Tu pago de ${pago.amount} ha sido verificado.`
-               : `Motivo: ${observaciones || 'Datos incorrectos'}`;
-   
-           const notif = new Notificacion({
-               usuario: pago.cliente,
-               titulo: tituloNotif,
-               mensaje: mensajeNotif,
-               tipo: esAprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO',
-               referenciaId: pago._id
-           });
-   
-           await notif.save();
-   
-           // 4. Emitir por Socket
-           if (req.io) {
-               req.io.to(pago.cliente.toString()).emit('notificacion-nueva', notif);
-           }
-   
-           res.json({
-               ok: true,
-               msg: esAprobado ? 'Pago aprobado' : 'Pago rechazado',
-               payment: pago,
-               notificacion: notif
-           });
-   
-       } catch (error) {
-           console.log(error);
-           res.status(500).json({ ok: false, msg: 'Error al procesar la validación' });
-       }
+    try {
+        const pago = await Pago.findById(id).populate('solicitud');
+        if (!pago) return res.status(404).json({ ok: false, msg: 'Pago no encontrado' });
 
+        // 1. Actualizamos los campos en el modelo de pagos
+        pago.status = nuevoEstado;
+        pago.usuario_validador = adminId;
+        pago.observaciones = observaciones || '';
+        
+        await pago.save();
 
+        // 2. Configurar los textos dinámicos de la Notificación
+        const esAprobado = nuevoEstado === 'APROBADO';
+        const tituloNotif = esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado';
+        const tipoNotif = esAprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO';
+
+        const mensajeNotif = esAprobado
+            ? `Tu pago de $${pago.amount} ha sido verificado con éxito.`
+            : `Motivo: ${observaciones || 'Datos incorrectos'}`;
+
+        const rutaDestino = `/mis-pagos`;
+
+        // 3. DISPARO HÍBRIDO (BD + Sockets + Push)
+        // Buscamos si el cliente final tiene dispositivos registrados para notificaciones push
+        const subs = await PushSubscription.find({ usuario: pago.cliente });
+
+        if (subs.length > 0) {
+            // Si el cliente usa un navegador compatible, el helper manda el push, el socket (iPhone) y guarda en BD
+            subs.forEach(s => {
+                sendNotification(
+                    s.subscription, 
+                    tituloNotif, 
+                    mensajeNotif, 
+                    rutaDestino, 
+                    pago.cliente, 
+                    tipoNotif, 
+                    pago._id
+                ).catch(err => { if (err.statusCode === 410) s.deleteOne(); });
+            });
+        } else {
+            // 💡 CASO CLAVE IPHONE: Si el usuario no tiene Push activos, mandamos null en la suscripción.
+            // El helper ejecutará limpiamente el Socket.io y el guardado en el historial de Mongo.
+            await sendNotification(
+                null, 
+                tituloNotif, 
+                mensajeNotif, 
+                rutaDestino, 
+                pago.cliente, 
+                tipoNotif, 
+                pago._id
+            );
+        }
+
+        res.json({
+            ok: true,
+            msg: esAprobado ? 'Pago aprobado' : 'Pago rechazado',
+            payment: pago
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ ok: false, msg: 'Error al procesar la validación' });
+    }
 };
 
 const borrarPago = async (req, res) => {

@@ -1,36 +1,77 @@
 const webpush = require('web-push');
+const Notificacion = require('../models/notificacion'); // Historial In-App
 
- const vapidKeys = {
+const vapidKeys = {
     "publicKey": process.env.VAPI_KEY_PUBLIC || '',
     "privateKey": process.env.VAPI_KEY_PRIVATE || ''
-  };
+};
 
-  webpush.setVapidDetails(
+webpush.setVapidDetails(
     'mailto:mercadocreativo@gmail.com',
     vapidKeys.publicKey,
     vapidKeys.privateKey,
-  );
+);
 
+/**
+ * Helper Centralizado para Notificaciones Híbridas
+ * @param {Object} userSubscription - Datos de suscripción push del usuario
+ * @param {string} title - Título de la notificación
+ * @param {string} message - Cuerpo de la notificación
+ * @param {string} url - Ruta de redirección en Angular (ej: '/mis-pagos')
+ * @param {string} usuarioId - ID del destinatario
+ * @param {string} tipo - ENUM de tu modelo (ej: 'NUEVO_PAGO', 'PAGO_APROBADO')
+ * @param {string} [referenciaId] - ID de la operación (Opcional)
+ */
+const sendNotification = async (userSubscription, title, message, url = '/notificaciones', usuarioId = null, tipo = 'AVISO_GENERAL', referenciaId = null) => {
+  
+  let nuevaNotif = null;
 
-// Agregamos 'url' como cuarto parámetro (opcional, por defecto '/home')
-const sendNotification = async (userSubscription, title, message) => {
-  const payload = JSON.stringify({
-    notification: {
-      title,
-      body: message,
-      icon: 'https://propietarios-corpocapital-pc.vercel.app/assets/icons/icon-128x128.png', // URL ABSOLUTA obligatoria
-      vibrate: [100, 50, 100],
-      data: { url }
+  // 1. HISTORIAL: Si nos pasan el usuarioId, guardamos la notificación en Mongo de forma automática
+  if (usuarioId) {
+    try {
+      nuevaNotif = new Notificacion({
+        usuario: usuarioId,
+        titulo: title,
+        mensaje: message,
+        tipo,
+        referenciaId
+      });
+      await nuevaNotif.save();
+    } catch (dbErr) {
+      console.error('Error al guardar historial de notificación:', dbErr);
     }
-  });
+  }
 
-  try {
-    await webpush.sendNotification(userSubscription, payload);
-  } catch (error) {
-    // Si el navegador responde 410 o 404, la suscripción ya no es válida
-    if (error.statusCode === 410 || error.statusCode === 404) {
-      console.log('Suscripción expirada. Deberías marcarla como null en tu DB.');
-      // Opcional: Aquí podrías pasar el ID del usuario para poner pushSubscription: null
+  // 2. 🟢 TIEMPO REAL (SOCKET.IO): Ideal para tu iPhone 6s
+  if (global.io && usuarioId) {
+    // Si se guardó en BD mandamos el documento completo, si no, armamos un objeto rápido para el Toastr
+    const payloadSocket = nuevaNotif || { titulo: title, mensaje: message, tipo, referenciaId, createdAt: new Date() };
+    global.io.to(usuarioId.toString()).emit('notificacion-recibida', payloadSocket);
+    console.log(`[Socket] Emitido con éxito a la sala: ${usuarioId}`);
+  }
+
+  // 3. 🌐 SEGUNDO PLANO (WEB PUSH): Para los navegadores y equipos compatibles
+  if (userSubscription && userSubscription.endpoint) {
+    // CORRECCIÓN: Ahora 'url' sí existe porque entra por parámetro
+    const payloadPush = JSON.stringify({
+      notification: {
+        title,
+        body: message,
+        icon: 'https://lawyer-laflecha.vercel.app/assets/icons/icon-128x128.png',
+        vibrate: [100, 50, 100],
+        data: { url }
+      }
+    });
+
+    try {
+      await webpush.sendNotification(userSubscription, payloadPush);
+      console.log(`[WebPush] Notificación enviada con éxito.`);
+    } catch (error) {
+      if (error.statusCode === 410 || error.statusCode === 404) {
+        console.log(`[WebPush] Suscripción expirada para el endpoint: ${userSubscription.endpoint}`);
+        // Lanzamos el error hacia arriba para que el controlador elimine la sub de la BD si es necesario
+        throw error;
+      }
     }
   }
 };

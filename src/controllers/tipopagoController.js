@@ -1,7 +1,7 @@
 const { response } = require('express');
 const PaymentMethod = require('../models/tipopago');
 
-const getPaymentMethods = async(req, res) => {
+const getPaymentMethods = async (req, res) => {
 
     const paymentMethods = await PaymentMethod.find();
 
@@ -11,7 +11,7 @@ const getPaymentMethods = async(req, res) => {
     });
 };
 
-const getPaymentMethodName = async(req, res) => {
+const getPaymentMethodName = async (req, res) => {
 
     const tipo = req.params.tipo;
     const uid = req.uid;
@@ -40,7 +40,7 @@ const getPaymentMethodName = async(req, res) => {
         });
 
 };
-const getPaymentMethod = async(req, res) => {
+const getPaymentMethod = async (req, res) => {
 
     const id = req.params.id;
     const uid = req.uid;
@@ -70,7 +70,7 @@ const getPaymentMethod = async(req, res) => {
 
 };
 
-const crearPaymentMethod = async(req, res) => {
+const crearPaymentMethod = async (req, res) => {
 
     const uid = req.uid;
     const paymentMethod = new PaymentMethod({
@@ -98,7 +98,7 @@ const crearPaymentMethod = async(req, res) => {
 
 };
 
-const actualizarPaymentMethod = async(req, res) => {
+const actualizarPaymentMethod = async (req, res) => {
 
     const id = req.params.id;
     const uid = req.uid;
@@ -136,7 +136,7 @@ const actualizarPaymentMethod = async(req, res) => {
 
 };
 
-const borrarPaymentMethod = async(req, res) => {
+const borrarPaymentMethod = async (req, res) => {
 
     const id = req.params.id;
 
@@ -180,44 +180,57 @@ const listarPorUsuario = (req, res) => {
     });
 }
 
+const updateStatus = async (req, res) => {
+    const id = req.params['id'];
+    const { status } = req.body;
 
-const updateStatus = async(req, res) =>{
-    const id = req.params.id;
-    const uid = req.uid;
+    const estadosValidos = ['ACTIVE', 'INACTIVE'];
+
+    // 1. Validar que venga un estado y que esté dentro de la lista permitida
+    if (!status || !estadosValidos.includes(status.toUpperCase())) {
+        return res.status(400).json({
+            ok: false,
+            message: `El estado enviado no es válido. Valores permitidos: ${estadosValidos.join(', ')}`
+        });
+    }
+
+    const estadoFormateado = status.toUpperCase();
 
     try {
+        // 3. Crear el objeto con los datos a actualizar
+        const camposAActualizar = {
+            status: estadoFormateado
+        };
 
-        const paymentMethod = await PaymentMethod.findById(id);
-        if (!paymentMethod) {
-            return res.status(500).json({
-                ok: false,
-                msg: 'transferencia no encontrado por el id'
-            });
+        // 4. CORRECCIÓN CRÍTICA: Pasar todos los campos juntos en el segundo parámetro
+        const paymentMethods_data = await PaymentMethod.findByIdAndUpdate(
+            id,
+            camposAActualizar,      // 👈 Segundo parámetro: Todo lo que se va a modificar
+            { new: true }           // 👈 Tercer parámetro: Opciones de Mongoose
+        )
+            .lean();
+
+        if (!paymentMethods_data) {
+            return res.status(404).json({ ok: false, message: 'No se encontró el documento especificado.' });
         }
 
-        const cambiosPaymentMethod = {
-            ...req.body,
-            usuario: uid
-        }
-
-        const paymentMethodActualizado = await PaymentMethod.findByIdAndUpdate(id, cambiosPaymentMethod, { new: true });
-
-        res.json({
+        return res.status(200).json({
             ok: true,
-            paymentMethodActualizado
+            paymentMethod: paymentMethods_data
         });
 
-    } catch (error) {
-        res.status(500).json({
-            ok: false,
-            msg: 'Error hable con el admin'
-        });
+
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor al actualizar el estado' });
     }
 }
 
-const listar_active = async(req, res) => {
 
-    PaymentMethod.find({  status: ['ACTIVE'] }).exec((err, paymentMethods_data) => {
+const listar_active = async (req, res) => {
+
+    PaymentMethod.find({ status: ['ACTIVE'] }).exec((err, paymentMethods_data) => {
         if (err) {
             res.status(500).send({ message: 'Ocurrió un error en el servidor.' });
         } else {
@@ -244,5 +257,5 @@ module.exports = {
     listarPorUsuario,
     updateStatus,
     listar_active,
-    
+
 };
