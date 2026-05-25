@@ -1,7 +1,9 @@
 const { response } = require('express');
 const Solicitud = require('../models/solicitud');
+const Pago = require('../models/pago');
 const PushSubscription = require('../models/push-subscription');
 const { sendNotification } = require('../helpers/notificaciones');
+
 
 const getSolicitudes = async (req, res) => {
 
@@ -145,61 +147,104 @@ const borrarSolicitud = async (req, res) => {
 };
 
 
-const listarSolicitudPorUsuario = (req, res) => {
-    var id = req.params['id'];
+const listarSolicitudPorUsuario = async(req, res) => {
+   const id = req.params['id'];
     const page = parseInt(req.query.page) || 1;
-    const limit = 4; // Tu límite actual
-    const skip = (page - 1) * limit; // Cuántos posts saltar
+    const limit = 4; 
+    const skip = (page - 1) * limit; 
 
-    Solicitud.find({ usuario: id })
-        .populate('cliente', 'email uid username')
-        .sort({ createdAt: -1 })
-        .skip(skip)   // <-- Nos saltamos los ya cargados
-        .limit(limit) // <-- Traemos los siguientes 4
-        .exec((err, data) => {
-            if (err) {
-                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
-            }
+    try {
+        // 1. Buscamos las solicitudes del cliente de forma paginada
+        const solicitudes = await Solicitud.find({ usuario: id })
+            .populate('cliente', 'email uid username')
+            .sort({ createdAt: -1 })
+            .skip(skip)   
+            .limit(limit);
 
-            if (data) {
-                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
-                res.status(200).send({
-                    ok: true,
-                    solicitudes: data
-                });
-            } else {
-                res.status(404).send({ ok: false, solicitudes: [] });
-            }
+        // Si no hay solicitudes en esta página, salimos rápido de forma limpia
+        if (!solicitudes || solicitudes.length === 0) {
+            return res.status(200).json({ ok: true, solicitudes: [] });
+        }
+
+        // 2. Mapeamos las solicitudes para inyectarles su pago correspondiente en caliente
+        const solicitudesConPago = await Promise.all(
+            solicitudes.map(async (solicitud) => {
+                
+                // Convertimos el documento Mongoose a objeto JSON plano para poder mutarlo libremente
+                const solicitudJson = solicitud.toObject();
+
+                // Buscamos en la colección de pagos si hay un registro que apunte a esta solicitud
+                const pagoAsociado = await Pago.findOne({ solicitud: solicitud._id })
+                    .select('status validacion referencia amount createdAt') // Traemos campos clave
+                    .lean();
+
+                // Inyectamos la propiedad 'pago' dinámicamente con la información encontrada (o null si no ha pagado)
+                solicitudJson.pago = pagoAsociado ? pagoAsociado : null;
+
+                return solicitudJson;
+            })
+        );
+
+        // 3. Respuesta HTTP fiel a tu formato reactivo del frontend
+        return res.status(200).json({
+            ok: true,
+            solicitudes: solicitudesConPago
         });
-}
 
-const listarSolicitudPorCliente = (req, res) => {
-    var id = req.params['id'];
+    } catch (error) {
+        console.error('Error al listar solicitudes con pago:', error);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor al procesar el historial' });
+    }
+}
+const listarSolicitudPorCliente = async (req, res) => {
+    const id = req.params['id'];
     const page = parseInt(req.query.page) || 1;
-    const limit = 4; // Tu límite actual
-    const skip = (page - 1) * limit; // Cuántos posts saltar
+    const limit = 4; 
+    const skip = (page - 1) * limit; 
 
-    Solicitud.find({ cliente: id })
-        .populate('usuario', 'email uid username')
-        .sort({ createdAt: -1 })
-        .skip(skip)   // <-- Nos saltamos los ya cargados
-        .limit(limit) // <-- Traemos los siguientes 4
-        .exec((err, data) => {
-            if (err) {
-                return res.status(500).send({ ok: false, message: 'Error en el servidor' });
-            }
+    try {
+        // 1. Buscamos las solicitudes del cliente de forma paginada
+        const solicitudes = await Solicitud.find({ cliente: id })
+            .populate('usuario', 'email uid username')
+            .sort({ createdAt: -1 })
+            .skip(skip)   
+            .limit(limit);
 
-            if (data) {
-                // Es buena práctica enviar 'ok: true' para que coincida con tu map del frontend
-                res.status(200).send({
-                    ok: true,
-                    solicitudes: data
-                });
-            } else {
-                res.status(404).send({ ok: false, solicitudes: [] });
-            }
+        // Si no hay solicitudes en esta página, salimos rápido de forma limpia
+        if (!solicitudes || solicitudes.length === 0) {
+            return res.status(200).json({ ok: true, solicitudes: [] });
+        }
+
+        // 2. Mapeamos las solicitudes para inyectarles su pago correspondiente en caliente
+        const solicitudesConPago = await Promise.all(
+            solicitudes.map(async (solicitud) => {
+                
+                // Convertimos el documento Mongoose a objeto JSON plano para poder mutarlo libremente
+                const solicitudJson = solicitud.toObject();
+
+                // Buscamos en la colección de pagos si hay un registro que apunte a esta solicitud
+                const pagoAsociado = await Pago.findOne({ solicitud: solicitud._id })
+                    .select('status validacion referencia amount createdAt') // Traemos campos clave
+                    .lean();
+
+                // Inyectamos la propiedad 'pago' dinámicamente con la información encontrada (o null si no ha pagado)
+                solicitudJson.pago = pagoAsociado ? pagoAsociado : null;
+
+                return solicitudJson;
+            })
+        );
+
+        // 3. Respuesta HTTP fiel a tu formato reactivo del frontend
+        return res.status(200).json({
+            ok: true,
+            solicitudes: solicitudesConPago
         });
-}
+
+    } catch (error) {
+        console.error('Error al listar solicitudes con pago:', error);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor al procesar el historial' });
+    }
+};
 
 
 const updateStatusSolicitud = async (req, res) => {
