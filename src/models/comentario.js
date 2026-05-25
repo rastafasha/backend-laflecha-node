@@ -6,10 +6,11 @@ var ComentarioSchema = Schema({
     pros: { type: String, required: true },
     cons: { type: String, required: true },
     estrellas: { type: Number, required: true },
-    usuario: { type: Schema.ObjectId, ref: 'Usuario' },
+    usuario: { type: Schema.Types.ObjectId, ref: 'Usuario', required: true },
+    cliente: { type: Schema.Types.ObjectId, ref: 'Usuario', required: true },
     solicitud: { type: Schema.ObjectId, ref: 'Solicitud' },
     createdAt: { type: Date, default: Date.now, required: true },
     updateddAt: { type: Date, default: Date.now, required: true },
-});
+}, { collection: 'comentarios' });
 
-module.exports = mongoose.model('comentario', ComentarioSchema);
+module.exports = mongoose.model('Comentario', ComentarioSchema);

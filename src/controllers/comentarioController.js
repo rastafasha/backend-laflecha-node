@@ -48,7 +48,7 @@ const crearComentario = (req, res) => {
     let data = req.body;
     console.log(data);
 
-    Comentario.find({ user: data.user, producto: data.producto }, (err, comentario_data) => {
+    Comentario.find({ usuario: data.usuario, cliente: data.cliente, solicitud: data.solicitud }, (err, comentario_data) => {
         if (err) {
             console.log(err);
             res.status(500).send({ message: 'Ocurrió un error en el servidor.' });
@@ -56,7 +56,7 @@ const crearComentario = (req, res) => {
             if (comentario_data.length != 0) {
                 console.log('si');
                 console.log(comentario_data);
-                res.status(500).send({ message: 'Ya emitió un comentario en esta compra.' });
+                res.status(500).send({ message: 'Ya emitió un comentario en esta solicitud.' });
             } else {
                 console.log('no');
                 console.log(comentario);
@@ -65,8 +65,9 @@ const crearComentario = (req, res) => {
                 comentario.pros = data.pros;
                 comentario.cons = data.cons;
                 comentario.estrellas = data.estrellas;
-                comentario.producto = data.producto;
-                comentario.user = data.user;
+                comentario.solicitud = data.solicitud;
+                comentario.usuario = data.usuario;
+                comentario.cliente = data.cliente;
                 comentario.save((err, comentario_save) => {
                     if (!err) {
                         if (comentario_save) {
@@ -339,6 +340,40 @@ function listarDislikes(req, res) {
     });
 }
 
+const listarCPorUsuario = async(req, res) => {
+   const id = req.params['id'];
+    const page = parseInt(req.query.page) || 1;
+    const limit = 4; 
+    const skip = (page - 1) * limit; 
+
+    try {
+        // 1. Buscamos las solicitudes del cliente de forma paginada
+        const comentarios = await Comentario.find({ usuario: id })
+            .populate('cliente', 'email uid username')
+            .populate('solicitud', 'pedido ')
+            .sort({ createdAt: -1 })
+            .skip(skip)   
+            .limit(limit);
+
+        // Si no hay solicitudes en esta página, salimos rápido de forma limpia
+        if (!comentarios || comentarios.length === 0) {
+            return res.status(200).json({ ok: true, comentarios: [] });
+        }
+
+       
+
+        // 3. Respuesta HTTP fiel a tu formato reactivo del frontend
+        return res.status(200).json({
+            ok: true,
+            comentarios: comentarios
+        });
+
+    } catch (error) {
+        console.error('Error al listar comentarios:', error);
+        return res.status(500).json({ ok: false, message: 'Error en el servidor al procesar el historial' });
+    }
+}
+
 
 module.exports = {
     getComentarios,
@@ -351,5 +386,6 @@ module.exports = {
     addDislike,
     addLike,
     getData,
-    listarDislikes
+    listarDislikes,
+    listarCPorUsuario
 };
