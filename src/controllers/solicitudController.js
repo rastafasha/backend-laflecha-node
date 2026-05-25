@@ -1,6 +1,7 @@
 const { response } = require('express');
 const Solicitud = require('../models/solicitud');
 const Pago = require('../models/pago');
+const Usuario = require('../models/usuario');
 const PushSubscription = require('../models/push-subscription');
 const { sendNotification } = require('../helpers/notificaciones');
 
@@ -63,8 +64,8 @@ const crearSolicitud = async (req, res) => {
         if (solicitudDB.usuario) {
             
             // 1. Buscamos el nombre del cliente para armar la alerta personalizada
-            const clienteInfo = await Usuario.findById(uid).select('nombre');
-            const nombreCliente = clienteInfo ? clienteInfo.nombre : 'Un cliente';
+            const clienteInfo = await Usuario.findById(uid).select('username');
+            const nombreCliente = clienteInfo ? clienteInfo.username : 'Un cliente';
 
             const titulo = '📄 Nueva Solicitud Recibida';
             const mensaje = `${nombreCliente} ha creado una nueva solicitud de servicio para ti.`;
@@ -342,6 +343,26 @@ const updateStatusSolicitud = async (req, res) => {
     }
 }
 
+function solicitudsPending(req, res) {
+    const id = req.params['id'];
+
+    Solicitud.find({ status: ['PENDING'] }, { usuario: id })
+    .populate('cliente', 'email uid username')
+    .populate('pedido createdAt status')
+    .exec((err, solicitud_data) => {
+        if (err) {
+            res.status(500).send({ message: 'Ocurrió un error en el servidor.' });
+        } else {
+            if (solicitud_data) {
+                res.status(200).send({ solicitudes: solicitud_data });
+            } else {
+                res.status(500).send({ message: 'No se encontró ningun dato en esta sección.' });
+            }
+        }
+    });
+}
+
+
 
 module.exports = {
     getSolicitudes,
@@ -350,6 +371,7 @@ module.exports = {
     borrarSolicitud,
     listarSolicitudPorUsuario,
     listarSolicitudPorCliente,
-    updateStatusSolicitud
+    updateStatusSolicitud,
+    solicitudsPending
 
 };

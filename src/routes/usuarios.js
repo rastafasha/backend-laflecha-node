@@ -17,11 +17,11 @@ const {
     set_token_recovery,
     verify_token_recovery,
     change_password,
-    getAllEditores,
     listarProfileUsuario,
     cambiarAMiembro,
     getUsuariosListPaginados,
-    getUsuariosListMember
+    getUsuariosListMember,
+    getUsuariosListMemberRecents
 } = require('../controllers/usuarioController');
 const {
     validarJWT,
@@ -37,9 +37,10 @@ router.get('/paginados',
      getUsuariosListPaginados);
 router.get('/member', 
      getUsuariosListMember);
+router.get('/memberrecents', 
+     getUsuariosListMemberRecents);
 router.get('/recientes', newest);
 router.get('/all', validarJWT, getAllUsers);
-router.get('/editores', getAllEditores);
 router.get('/:id', 
     validarJWT,
     getUsuario);

@@ -11,7 +11,8 @@ const {
     borrarSolicitud,
     listarSolicitudPorUsuario,
     listarSolicitudPorCliente,
-    updateStatusSolicitud
+    updateStatusSolicitud,
+    solicitudsPending
 
 } = require('../controllers/solicitudController');
 const { validarJWT } = require('../middlewares/validar-jwt');
@@ -21,6 +22,7 @@ const { validarCampos } = require('../middlewares/validar-campos');
 router.get('/', getSolicitudes);
 router.get('/:id', getSolicitud);
 router.get('/user/:id', listarSolicitudPorUsuario);
+router.get('/pending/:id', solicitudsPending);
 router.get('/cliente/:id', listarSolicitudPorCliente);
 
 router.post('/crear', [

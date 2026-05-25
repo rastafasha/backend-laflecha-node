@@ -256,6 +256,99 @@ const getUsuariosListMember = async (req, res) => {
 };
 
 
+const getUsuariosListMemberRecents = async (req, res) => {
+    try {
+        const usuarios = await Usuario.aggregate([
+            // 1. Filtramos INICIALMENTE solo los usuarios con rol MEMBER
+            { $match: { role: 'MEMBER' } }, 
+            
+            // 2. Buscamos el perfil correspondiente en la colección 'profiles'
+            {
+                $lookup: {
+                    from: 'profiles',
+                    localField: '_id',
+                    foreignField: 'usuario',
+                    as: 'profile'
+                }
+            },
+            
+            // 3. Convertimos el arreglo de perfil en un objeto plano
+            {
+                $unwind: {
+                    path: '$profile',
+                    preserveNullAndEmptyArrays: true 
+                }
+            },
+
+            // 🔥 CORRECCIÓN CRÍTICA: Filtramos AQUÍ por el status del perfil, ahora que el objeto ya existe
+            { 
+                $match: { 'profile.status': 'VERIFIED' } 
+            },
+
+            // 4. Buscamos la especialidad usando el ID guardado en el perfil
+            {
+                $lookup: {
+                    from: 'specialties', 
+                    let: { especialidadId: '$profile.especialidad' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: [ '$_id', { $toObjectId: '$$especialidadId' } ]
+                                }
+                            }
+                        }
+                    ],
+                    as: 'specialityData'
+                }
+            },
+
+            // 5. Convertimos el arreglo de la especialidad en objeto plano
+            {
+                $unwind: {
+                    path: '$specialityData',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            
+            // 6. Moldeamos la respuesta exacta final
+            {
+                $project: {
+                    _id: 0,
+                    uid: '$_id',
+                    username: 1,
+                    email: 1,
+                    role: 1,
+                    profile: {
+                        _id: '$profile._id',
+                        first_name: '$profile.first_name',
+                        last_name: '$profile.last_name',
+                        img: '$profile.img',
+                        status: '$profile.status',
+                        especialidad: {
+                            _id: '$specialityData._id',
+                            nombre: '$specialityData.nombre'
+                        }
+                    }
+                }
+            }
+        ]).sort({ createdAt:-1 }).limit(4);
+
+        return res.status(200).json({
+            ok: true,
+            usuarios
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            ok: false,
+            msg: 'Error al obtener y filtrar la lista de usuarios'
+        });
+    }
+};
+
+
 
 
 
@@ -501,21 +594,6 @@ const crearEditor = async(req, res = response) => {
 
 };
 
-const getAllEditores = (req, res) => {
-
-
-    Usuario.find({ role: 'EDITOR' }).exec((err, editores) => {
-        if (err) {
-            res.status(500).send({ message: 'Ocurrió un error en el servidor.' });
-        } else {
-            if (editores) {
-                res.status(200).send({ editores: editores });
-            } else {
-                res.status(500).send({ message: 'No se encontró ningun dato en esta sección.' });
-            }
-        }
-    });
-};
 
 function set_token_recovery(req, res) {
     var email = req.params['email'];
@@ -666,7 +744,7 @@ module.exports = {
     verify_token_recovery,
     change_password,
     newest,
-    getAllEditores,
     listarProfileUsuario,
-    cambiarAMiembro
+    cambiarAMiembro,
+    getUsuariosListMemberRecents
 };
