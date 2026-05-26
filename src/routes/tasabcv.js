@@ -6,7 +6,6 @@ const { Router } = require('express');
 const router = Router();
 const {
     getTasas,
-    getTasa,
     crearTasa,
     actualizarTasa,
     borrarTasa,
@@ -19,7 +18,6 @@ const { validarCampos } = require('../middlewares/validar-campos');
 
 router.get('/', getTasas);
 router.get('/ultimatasa', getUltimatasa);
-router.get('/:id', getTasa);
 
 router.post('/crear', [
     // validarJWT,

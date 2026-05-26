@@ -1,5 +1,4 @@
 const { response } = require('express');
-const Local = require('../models/local');
 const Tasabcv = require('../models/tasabcv'); 
 
 
@@ -22,37 +21,6 @@ const getUltimatasa = async(req, res) => {
 };
 
 
-const getTasa = async(req, res) => {
-
-    const id = req.params.id;
-
-
-    Tasabcv.findById(id, {})
-        .exec((err, local) => {
-            if (err) {
-                return res.status(500).json({
-                    ok: false,
-                    mensaje: 'Error al buscar Tasabcv',
-                    errors: err
-                });
-            }
-            if (!local) {
-                return res.status(400).json({
-                    ok: false,
-                    mensaje: 'La Tasa con el id ' + id + 'no existe',
-                    errors: { message: 'No existe una Tasa con ese ID' }
-                });
-
-            }
-            res.status(200).json({
-                ok: true,
-                local: local
-            });
-        });
-
-
-    
-};
 
 const crearTasa = async(req, res) => {
     const uid = req.uid; // ID del usuario autenticado
@@ -111,12 +79,12 @@ const actualizarTasa = async(req, res) => {
 
         // VALIDACIÓN DE SEGURIDAD: 
         // Solo el dueño del local o un ADMIN deberían poder editarlo
-        if (tasa.usuario.toString() !== uid && req.role !== 'ADMIN_ROLE') {
-            return res.status(403).json({
-                ok: false,
-                msg: 'No tienes permisos para editar esta tasa'
-            });
-        }
+        // if (tasa.usuario.toString() !== uid && req.role !== 'ADMIN_ROLE') {
+        //     return res.status(403).json({
+        //         ok: false,
+        //         msg: 'No tienes permisos para editar esta tasa'
+        //     });
+        // }
 
         // Preparamos los cambios (evitamos que el usuario cambie el dueño por error)
         const { usuario, ...campos } = req.body; 
@@ -152,9 +120,9 @@ const borrarTasa = async(req, res) => {
         }
 
         // Seguridad
-        if (tasaDB.usuario.toString() !== uid && req.role !== 'ADMIN_ROLE') {
-            return res.status(403).json({ ok: false, msg: 'No tiene permisos' });
-        }
+        // if (tasaDB.usuario.toString() !== uid && req.role !== 'ADMIN_ROLE') {
+        //     return res.status(403).json({ ok: false, msg: 'No tiene permisos' });
+        // }
 
         // Limpiar el Perfil
         await Profile.findOneAndUpdate(
@@ -177,7 +145,6 @@ const borrarTasa = async(req, res) => {
 
 module.exports = {
     getTasas,
-    getTasa,
     crearTasa,
     actualizarTasa,
     borrarTasa,
